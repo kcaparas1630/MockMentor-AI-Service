@@ -14,8 +14,10 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc && \
     rm -rf /var/lib/apt/lists/*
 
+RUN adduser --disabled-password --gecos "" appuser
+
 # Install pip requirements first for better cache
-COPY ./api/requirements.txt /code/requirements.txt
+COPY ./requirements.txt /code/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /code/requirements.txt
 
@@ -24,6 +26,8 @@ COPY ./app /code/app
 
 # Expose the port FastAPI will run on
 EXPOSE 8000
+
+USER appuser
 
 # Run the app with uvicorn, using multiple workers for production
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
