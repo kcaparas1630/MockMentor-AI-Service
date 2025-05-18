@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 from app.core.route_limiters import limiter
 from app.schemas.health_response import HealthResponse
-
+from loguru import logger
 router = APIRouter()
 
 @router.get("/health", response_model=HealthResponse)
@@ -10,4 +10,5 @@ async def health(request: Request):
     """
     Request parameter is required for rate limiting.
     """
+    logger.info("Health check endpoint called")
     return {"status": "ok"} 

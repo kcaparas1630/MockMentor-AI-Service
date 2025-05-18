@@ -5,6 +5,8 @@ from slowapi import _rate_limit_exceeded_handler
 from app.core.route_limiters import limiter
 from app.routes.health import router as health_router
 
+from loguru import logger
+
 # Initialize FastAPI app
 app = FastAPI(
     title="AI Service API",
@@ -17,7 +19,7 @@ try:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 except Exception as e:
-    print(f"Error adding rate limiter: {e}")
+    logger.error(f"Error adding rate limiter: {e}")
 
 # Include routers
 app.include_router(health_router)
