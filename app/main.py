@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+import os
 from fastapi import FastAPI
 from slowapi.errors import RateLimitExceeded
 from slowapi import _rate_limit_exceeded_handler
@@ -5,10 +7,14 @@ from slowapi import _rate_limit_exceeded_handler
 from app.core.route_limiters import limiter
 # Routers
 from app.routes.health import router as health_router
+from app.routes.interview_feedback import router as interview_feedback_router
 # CORS Middleware
-from app.core.CorsMiddleware import add_cors_middleware
+from app.core.cors_middleware import add_cors_middleware
 
 from loguru import logger
+
+# Load environment variables
+load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -28,3 +34,4 @@ except Exception as e:
 
 # Include routers
 app.include_router(health_router)
+app.include_router(interview_feedback_router)
