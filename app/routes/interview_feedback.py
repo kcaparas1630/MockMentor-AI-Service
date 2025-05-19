@@ -18,11 +18,10 @@ async def get_interview_feedback(request: InterviewAnalysisRequest):
     """
     try:
         service = TextAnswersService()
-        feedback = await asyncio.to_thread(
-            service.analyze_interview_response(request)
-        )
+        feedback = await service.analyze_interview_response(request)
+        
         return feedback
     except Exception as e:
         logger.error(f"Error getting interview feedback: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
         
