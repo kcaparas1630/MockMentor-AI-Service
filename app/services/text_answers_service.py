@@ -1,7 +1,7 @@
 import os
 import re
 import json
-from openai import OpenAI
+from openai import AsyncOpenAI
 from loguru import logger
 from app.schemas.interview_feedback_response import InterviewFeedbackResponse
 from app.schemas.interview_request import InterviewRequest
@@ -9,12 +9,15 @@ from app.schemas.interview_analysis_request import InterviewAnalysisRequest
 
 class TextAnswersService:
     def __init__(self):
-        self.client = OpenAI(
+        api_key = os.getenv("NEBIUS_API_KEY")
+        if not api_key:
+            raise RuntimeError("NEBIUS_API_KEY environment variable is not set")
+        self.client = AsyncOpenAI(
             base_url="https://api.studio.nebius.com/v1",
-            api_key=os.getenv("NEBIUS_API_KEY")
+            api_key=os.getenv(api_key)
         )
     
-    def analyze_interview_response(self, analysis_request: InterviewAnalysisRequest):
+    async def analyze_interview_response(self, analysis_request: InterviewAnalysisRequest):
         try:
             # Make the prompt more explicit about JSON formatting
             response = self.client.chat.completions.create(
