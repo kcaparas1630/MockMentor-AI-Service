@@ -4,3 +4,5 @@ uvicorn[standard]==0.23.2
 pydantic==2.4.2
 slowapi==0.1.8
 loguru==0.7.3
+openai==1.79.0
+dotenv==0.21.0
