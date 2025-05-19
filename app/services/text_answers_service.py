@@ -77,7 +77,7 @@ User Response: {analysis_request.answer}"""
             # Create a request object with the original question and response
             request = InterviewRequest(question=analysis_request.question, answer=analysis_request.answer)
             
-            # Try to parse as JSON first
+            # parse the JSON response first.
             try:
                 import json
                 feedback_data = json.loads(content)
