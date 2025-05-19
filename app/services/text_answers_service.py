@@ -1,12 +1,11 @@
 import os
 import re
-import json
 from openai import AsyncOpenAI
 from loguru import logger
 from app.schemas.interview_feedback_response import InterviewFeedbackResponse
 from app.schemas.interview_request import InterviewRequest
 from app.schemas.interview_analysis_request import InterviewAnalysisRequest
-
+from app.helper.extract_regex_feedback import extract_regex_feedback
 class TextAnswersService:
     def __init__(self):
         api_key = os.getenv("NEBIUS_API_KEY")
@@ -14,13 +13,13 @@ class TextAnswersService:
             raise RuntimeError("NEBIUS_API_KEY environment variable is not set")
         self.client = AsyncOpenAI(
             base_url="https://api.studio.nebius.com/v1",
-            api_key=os.getenv(api_key)
+            api_key=api_key
         )
     
     async def analyze_interview_response(self, analysis_request: InterviewAnalysisRequest):
         try:
             # Make the prompt more explicit about JSON formatting
-            response = self.client.chat.completions.create(
+            response = await self.client.chat.completions.create(
                 model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
                 max_tokens=1000,
                 temperature=0.5,
@@ -103,32 +102,11 @@ User Response: {analysis_request.answer}"""
                 logger.error(f"JSON parsing error: {e}")
                 logger.error(f"Content that failed to parse: {content}")
                 
-                # Fallback to more robust regex-based parsing
-                overall = re.search(r"[\"']overall_assessment[\"']\s*:\s*[\"'](.*?)[\"']", content, re.DOTALL)
-                strengths_match = re.search(r"[\"']strengths[\"']\s*:\s*\[(.*?)\]", content, re.DOTALL)
-                areas_match = re.search(r"[\"']areas_for_improvement[\"']\s*:\s*\[(.*?)\]", content, re.DOTALL)
-                score_match = re.search(r"[\"']confidence_score[\"']\s*:\s*(\d+)", content)
-                actions_match = re.search(r"[\"']recommended_actions[\"']\s*:\s*\[(.*?)\]", content, re.DOTALL)
+                # Fallback to regex-based parsing
+                return extract_regex_feedback(content, request)
                 
-                # Parse list items
-                def parse_list(match_result):
-                    if not match_result:
-                        return []
-                    items = re.findall(r"[\"'](.*?)[\"']", match_result.group(1))
-                    return items if items else []
                 
-                # Create the response object with fallback parsing
-                feedback_response = InterviewFeedbackResponse(
-                    question=request.question,
-                    answer=request.answer,
-                    overall_assessment=overall.group(1) if overall else "The response shows some understanding of the situation.",
-                    strengths=parse_list(strengths_match) if strengths_match else ["Clear communication", "Problem-solving approach"],
-                    areas_for_improvement=parse_list(areas_match) if areas_match else ["Could provide more specific details", "Consider using the STAR method"],
-                    confidence_score=int(score_match.group(1)) if score_match else 5,
-                    recommended_actions=parse_list(actions_match) if actions_match else ["Practice structuring responses with the STAR method", "Include more quantifiable results"]
-                )
                 
-                return feedback_response
                 
         except Exception as e:
             logger.error(f"Error in analyze_interview_response: {e}")
