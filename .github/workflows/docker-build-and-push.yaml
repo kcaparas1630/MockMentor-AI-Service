@@ -36,4 +36,10 @@ jobs:
           docker push us-east1-docker.pkg.dev/terraform-practice-455719/ai-interview-python-server/ai-interview-python-server:latest
           docker tag us-east1-docker.pkg.dev/terraform-practice-455719/ai-interview-python-server/ai-interview-python-server:latest us-east1-docker.pkg.dev/terraform-practice-455719/ai-interview-python-server/ai-interview-python-server:${{ github.sha }}
           docker push us-east1-docker.pkg.dev/terraform-practice-455719/ai-interview-python-server/ai-interview-python-server:${{ github.sha }}
-     
+      - name: Deploy to Cloud Run
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: 'ai-interview-python-server'
+          image: 'us-east1-docker.pkg.dev/terraform-practice-455719/ai-interview-python-server/ai-interview-python-server:latest'
+          region: 'us-east1'
