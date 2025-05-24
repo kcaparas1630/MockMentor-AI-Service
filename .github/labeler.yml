@@ -1,0 +1,17 @@
+app:
+  - changed-files:
+      - any-glob-to-any-file: 'app/**'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: 
+          - '*.md'
+          - 'docs/**'
+
+config:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - '*.yml'
+          - '*.yaml'
+          - '*.json'

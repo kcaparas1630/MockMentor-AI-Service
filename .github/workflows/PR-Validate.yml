@@ -1,0 +1,64 @@
+name: PR Validate
+
+on:
+  pull_request:
+    types: [edited, opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-edit-${{ github.event.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate PR
+    if: (! github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # or your project's version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Add any other validations steps here in the future
+
+  pr-title:
+    name: PR Title Conventional Commit Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  labeler:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/labeler@v5
+
+  results:
+    name: Validate Results
+    if: always()
+    needs: [validate, labeler]
+    runs-on: ubuntu-22.04
+    steps:
+      - run: |
+          # View results
+          echo "needs.*.result: ${{ toJson(needs.*.result) }}"
+
+      - if: contains(needs.*.result, 'failure')
+        run: |
+          # Job failure found
+          echo "At least one job has failed"
+          exit 1
