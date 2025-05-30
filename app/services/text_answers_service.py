@@ -58,7 +58,7 @@ EVALUATION CRITERIA:
 
 TONE: Maintain a supportive, professional tone that motivates improvement while being direct about areas needing work. Use encouraging language like \"Consider enhancing...\" or \"To strengthen your response...\"
 
-Additional Context: {analysis_request.job_role}, {analysis_request.job_level}, {analysis_request.interview_type}"""
+Additional Context: {analysis_request.jobRole}, {analysis_request.jobLevel}, {analysis_request.interviewType}, {analysis_request.questionType}"""
                     },
                     {
                         "role": "user",
@@ -86,13 +86,11 @@ User Response: {analysis_request.answer}"""
                 
                 # Create the response object
                 feedback_response = InterviewFeedbackResponse(
-                    question=request.question,
-                    answer=request.answer,
-                    overall_assessment=feedback_data.get("overall_assessment", ""),
+                    score=feedback_data.get("score", 0),
+                    feedback=feedback_data.get("feedback", ""),
                     strengths=feedback_data.get("strengths", []),
-                    areas_for_improvement=feedback_data.get("areas_for_improvement", []),
-                    confidence_score=feedback_data.get("confidence_score", 0),
-                    recommended_actions=feedback_data.get("recommended_actions", [])
+                    improvements=feedback_data.get("improvements", []),
+                    tips=feedback_data.get("tips", [])
                 )
                 
                 return feedback_response
@@ -112,11 +110,9 @@ User Response: {analysis_request.answer}"""
             logger.error(f"Error in analyze_interview_response: {e}")
             # Return a basic response in case of error
             return InterviewFeedbackResponse(
-                question=analysis_request.question,
-                answer=analysis_request.answer,
-                overall_assessment="Unable to analyze the response due to a technical error.",
+                score=0,
+                feedback="Unable to analyze the response due to a technical error.",
                 strengths=["N/A"],
-                areas_for_improvement=["N/A"],
-                confidence_score=0,
-                recommended_actions=["Please try again later."]
+                improvements=["N/A"],
+                tips=["Please try again later."]
             ) 
