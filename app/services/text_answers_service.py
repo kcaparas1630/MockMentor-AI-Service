@@ -40,14 +40,14 @@ ROLE: Analyze interview responses and provide constructive feedback that is:
 OUTPUT FORMAT:
 You must return a valid JSON object with exactly this structure:
 {{
-  "overall_assessment": "Brief summary (2-3 sentences)",
+  "score": 7,
+  "feedback": "Brief summary (2-3 sentences)",
   "strengths": ["Strength 1", "Strength 2", "Strength 3"],
-  "areas_for_improvement": ["Area 1", "Area 2", "Area 3"],
-  "confidence_score": 7,
-  "recommended_actions": ["Action 1", "Action 2", "Action 3"]
+  "improvements": ["Area 1", "Area 2", "Area 3"],
+  "tips": ["Tip 1", "Tip 2", "Tip 3"]
 }}
 
-IMPORTANT: Your entire response must be valid JSON only. Do not include any text before or after the JSON. Do not use markdown formatting. The confidence_score must be an integer between 1 and 10.
+IMPORTANT: Your entire response must be valid JSON only. Do not include any text before or after the JSON. Do not use markdown formatting. The score must be an integer between 1 and 10.
 
 EVALUATION CRITERIA:
 - Relevance to the question
