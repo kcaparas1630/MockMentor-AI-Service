@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field
+from pydantic import Field
 from app.schemas.interview_request import InterviewRequest
 
 class InterviewAnalysisRequest(InterviewRequest):
-    job_role: str = Field(default="Software Engineer")
-    job_level: str = Field(default="Entry-Level")
-    interview_type: str = Field(default="Behavioral")
-    
+    jobRole: str = Field(default="Software Engineer")
+    jobLevel: str = Field(default="Entry-Level")
+    interviewType: str = Field(default="Behavioral")
+    questionType: str = Field(default="Behavioral")
