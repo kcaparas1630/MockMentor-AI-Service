@@ -1,5 +1,5 @@
 from pydantic import Field
-from app.schemas.interview_request import InterviewRequest
+from app.schemas.text_schemas.interview_request import InterviewRequest
 
 class InterviewAnalysisRequest(InterviewRequest):
     jobRole: str = Field(default="Software Engineer")
