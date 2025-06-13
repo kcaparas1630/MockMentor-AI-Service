@@ -4,6 +4,8 @@ from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
 from app.schemas.main.user_message import UserMessage
 from typing import Dict, List
+from starlette.websockets import WebSocketDisconnect
+from app.schemas.websocket.websocket_message import WebSocketMessage, WebSocketUserMessage
 
 class MainConversationService:
     _instance = None # CLass variable to store the instance of the class
@@ -140,3 +142,59 @@ class MainConversationService:
         except Exception as e:
             logger.error(f"Error in handle_user_message: {e}")
             raise e
+
+    async def handle_websocket_connection(self, websocket):
+        """
+        Handle the entire WebSocket conversation lifecycle
+        """
+        try:
+            # Wait for initial connection message with session details
+            initial_message = await websocket.receive_json()
+            session = InterviewSession(**initial_message)
+            
+            # Get initial greeting
+            response = await self.conversation_with_user_response(session)
+            await websocket.send_json({"type": "message", "content": response})
+
+            # Handle ongoing conversation
+            while True:
+                try:
+                    # Wait for user message
+                    message = await websocket.receive_json()
+                    
+                    # Process message and get response
+                    user_message = UserMessage(
+                        session_id=session.session_id,
+                        message=message["content"]
+                    )
+                    response = await self.handle_user_message(user_message)
+                    
+                    # Send response back
+                    await websocket.send_json({
+                        "type": "message",
+                        "content": response
+                    })
+                except WebSocketDisconnect:
+                    logger.info("WebSocket connection closed by client")
+                    break
+                except Exception as e:
+                    logger.error(f"Error in websocket message handling: {e}")
+                    try:
+                        await websocket.send_json({
+                            "type": "error",
+                            "content": str(e)
+                        })
+                    except WebSocketDisconnect:
+                        logger.info("WebSocket connection closed while sending error")
+                        break
+        except WebSocketDisconnect:
+            logger.info("WebSocket connection closed during initial setup")
+        except Exception as e:
+            logger.error(f"Error in websocket connection: {e}")
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "content": str(e)
+                })
+            except WebSocketDisconnect:
+                logger.info("WebSocket connection closed while sending error")
