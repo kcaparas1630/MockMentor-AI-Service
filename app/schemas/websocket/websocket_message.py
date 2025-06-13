@@ -5,5 +5,6 @@ class WebSocketMessage(BaseModel):
     type: str  # "message", "error", "system"
     content: str
 
+# Model for user messages
 class WebSocketUserMessage(BaseModel):
     content: str

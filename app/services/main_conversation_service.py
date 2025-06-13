@@ -128,8 +128,7 @@ class MainConversationService:
             self._add_to_context(user_message.session_id, "user", user_message.message)
             
             # Get response using the main conversation method
-            # We'll create a minimal InterviewSession object with just the session_id
-            # since that's all we need for context lookup
+            # Create a InterviewSession object with only the session_id
             session = InterviewSession(
                 session_id=user_message.session_id,
                 user_name="",  # Not needed for ongoing conversation
