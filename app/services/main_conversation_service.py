@@ -4,7 +4,7 @@ from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
 from app.schemas.main.user_message import UserMessage
 from typing import Dict, List
-from starlette.websockets import WebSocketDisconnect
+from starlette.websockets import WebSocket, WebSocketDisconnect
 from app.schemas.websocket.websocket_message import WebSocketMessage, WebSocketUserMessage
 
 class MainConversationService:
@@ -142,47 +142,52 @@ class MainConversationService:
             logger.error(f"Error in handle_user_message: {e}")
             raise e
 
-    async def handle_websocket_connection(self, websocket):
+    async def handle_websocket_connection(self, websocket: WebSocket):
         """
         Handle the entire WebSocket conversation lifecycle
         """
         try:
             # Wait for initial connection message with session details
-            initial_message = await websocket.receive_json()
+            initial_message: dict = await websocket.receive_json()
             session = InterviewSession(**initial_message)
             
             # Get initial greeting
-            response = await self.conversation_with_user_response(session)
-            await websocket.send_json({"type": "message", "content": response})
+            response: str = await self.conversation_with_user_response(session)
+            await websocket.send_json(WebSocketMessage(
+                type="message",
+                content=response
+            ).model_dump())
 
             # Handle ongoing conversation
             while True:
                 try:
                     # Wait for user message
-                    message = await websocket.receive_json()
+                    raw_message: dict = await websocket.receive_json()
+                    # Validate the message using the WebSocketUserMessage model
+                    user_ws_message: WebSocketUserMessage = WebSocketUserMessage.model_validate(raw_message)
                     
                     # Process message and get response
-                    user_message = UserMessage(
+                    user_message: UserMessage = UserMessage(
                         session_id=session.session_id,
-                        message=message["content"]
+                        message=user_ws_message.content
                     )
-                    response = await self.handle_user_message(user_message)
+                    response: str = await self.handle_user_message(user_message)
                     
                     # Send response back
-                    await websocket.send_json({
-                        "type": "message",
-                        "content": response
-                    })
+                    await websocket.send_json(WebSocketMessage(
+                        type="message",
+                        content=response
+                    ).model_dump())
                 except WebSocketDisconnect:
                     logger.info("WebSocket connection closed by client")
                     break
                 except Exception as e:
                     logger.error(f"Error in websocket message handling: {e}")
                     try:
-                        await websocket.send_json({
-                            "type": "error",
-                            "content": str(e)
-                        })
+                        await websocket.send_json(WebSocketMessage(
+                            type="error",
+                            content=str(e)
+                        ).model_dump())
                     except WebSocketDisconnect:
                         logger.info("WebSocket connection closed while sending error")
                         break
@@ -191,9 +196,9 @@ class MainConversationService:
         except Exception as e:
             logger.error(f"Error in websocket connection: {e}")
             try:
-                await websocket.send_json({
-                    "type": "error",
-                    "content": str(e)
-                })
+                await websocket.send_json(WebSocketMessage(
+                    type="error",
+                    content=str(e)
+                ).model_dump())
             except WebSocketDisconnect:
                 logger.info("WebSocket connection closed while sending error")
