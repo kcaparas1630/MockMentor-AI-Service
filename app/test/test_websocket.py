@@ -24,7 +24,7 @@ async def test_websocket():
         # Send a message
         await websocket.send(json.dumps({
             "session_id": "123",
-            "content": "Yes, I am ready!"
+            "message": "Yes, I am ready!"
         }))
         
         # Get response
