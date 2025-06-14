@@ -17,5 +17,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         logger.info("WebSocket connection closed")
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        await websocket.close(code=1000)
+        logger.exception("Unhandled exception in websocket connection")
+        #1011 = internal error
+        await websocket.close(code=1011, reason=str(e)[:123])
+        raise # re-raise the exception to be handled by the FastAPI error handler
