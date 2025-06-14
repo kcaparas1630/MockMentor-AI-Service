@@ -2,9 +2,9 @@ import os
 import re
 from openai import AsyncOpenAI
 from loguru import logger
-from app.schemas.interview_feedback_response import InterviewFeedbackResponse
-from app.schemas.interview_request import InterviewRequest
-from app.schemas.interview_analysis_request import InterviewAnalysisRequest
+from app.schemas.text_schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.text_schemas.interview_request import InterviewRequest
+from app.schemas.text_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.helper.extract_regex_feedback import extract_regex_feedback
 class TextAnswersService:
     def __init__(self):

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from app.schemas.interview_analysis_request import InterviewAnalysisRequest
-from app.schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.text_schemas.interview_analysis_request import InterviewAnalysisRequest
+from app.schemas.text_schemas.interview_feedback_response import InterviewFeedbackResponse
 from app.services.text_answers_service import TextAnswersService
 from loguru import logger
 import asyncio

@@ -1,6 +1,6 @@
-from app.schemas.interview_analysis_request import InterviewAnalysisRequest
+from app.schemas.text_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.constants.regex_patterns import REGEX_PATTERNS
-from app.schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.text_schemas.interview_feedback_response import InterviewFeedbackResponse
 import re
 
 # Extract feedback from the content using regex patterns
