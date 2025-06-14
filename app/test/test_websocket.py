@@ -2,7 +2,9 @@
 import asyncio
 import websockets
 import json
+import pytest
 
+@pytest.mark.asyncio
 async def test_websocket():
     uri = "ws://localhost:8000/api/ws"
     async with websockets.connect(uri) as websocket:
@@ -21,11 +23,10 @@ async def test_websocket():
         
         # Send a message
         await websocket.send(json.dumps({
+            "session_id": "123",
             "content": "Yes, I am ready!"
         }))
         
         # Get response
         response = await websocket.recv()
         print("Received:", response)
-
-asyncio.run(test_websocket())
