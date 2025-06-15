@@ -43,6 +43,7 @@ class MainConversationService:
     _conversation_contexts: Dict[str, List[Dict]] = {}  # Store conversation history for each session
     _session_questions: Dict[str, List[str]] = {}  # Store questions for each session
     _current_question_index: Dict[str, int] = {}  # Track current question index for each session
+    _session_state: Dict[str, Dict] = {}
 
     def __new__(cls):
         """
@@ -123,6 +124,7 @@ class MainConversationService:
             
             logger.info(f"Stored {len(questions_result['questions'])} questions for session {interview_session.session_id}")
             logger.info(f"First question: {questions_result['questions'][0]}")
+            logger.info(f"Second question: {questions_result['questions'][1]}")
             
             return questions_result['questions']
             
@@ -185,7 +187,17 @@ class MainConversationService:
         """
         try:
             # Initialize or get conversation context
-            context = self._get_conversation_context(interview_session.session_id)
+            session_id = interview_session.session_id
+            context = self._get_conversation_context(session_id)
+
+            # Initialize session state if needed
+            if session_id not in self._session_state:
+                self._session_state[session_id] = {
+                    "ready": False,
+                    "current_question_index": 0,
+                    "waiting_for_answer": False,
+                }
+            session_state = self._session_state[session_id]
             
             # Handle first message (empty context)
             if not context:
@@ -220,6 +232,12 @@ class MainConversationService:
    * Present the exact question provided to you
    * Add encouraging words after the question
 
+3.  **Presenting Interview Questions:**
+    * Once the `get_questions` tool provides a question, present it clearly to the user.
+    * Reinforce expectations for a good answer (e.g., STAR method if applicable for behavioral questions) and offer encouragement.
+    * After the user has answered the question, provide feedback on their response.
+    * Move to the next question.
+
 ---
 
 **CONTEXT FOR AI'S INTERNAL USE:**
@@ -237,6 +255,12 @@ class MainConversationService:
 * Providing feedback before the user has given an answer to a specific interview question
 * Any response that is not a complete, natural-sounding sentence
 * Creating or modifying questions - ALWAYS use the questions provided to you exactly
+
+---
+
+**IMPORTANT NOTE FOR TOOL USAGE:**
+
+* Always preface the actual question with a statement indicating that the `get_questions` tool was called (e.g., "Calling the `get_questions` tool now to retrieve the next question in the sequence. Here it comes:").
 """
                 }
                 self._add_to_context(interview_session.session_id, "system", system_message["content"])
@@ -248,21 +272,24 @@ class MainConversationService:
             last_user_message = None
             for msg in reversed(context):
                 if msg["role"] == "user":
-                    last_user_message = msg["content"].lower()
+                    last_user_message = msg["content"].strip()
                     break
             
-            # Handle user's readiness to start
-            if (last_user_message and 
-                any(ready_phrase in last_user_message for ready_phrase in ["yes", "ready", "i'm ready", "let's start", "let's go"]) and
-                self._current_question_index.get(interview_session.session_id, 0) == 0):
-                
-                current_question = self._get_current_question(interview_session.session_id)
-                self._add_to_context(interview_session.session_id, "user", last_user_message)
-                
-                response = f"Great! I'm excited to see how you do. Here's your first question:\n\n{current_question}\n\nTake your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
-                
-                self._add_to_context(interview_session.session_id, "assistant", response)
-                # User answers the question
+            # Handle readiness
+            if not session_state["ready"]:
+                if last_user_message and any(ready in last_user_message.lower() for ready in ["yes", "ready", "i'm ready", "let's start", "let's go"]):
+                    session_state["ready"] = True
+                    session_state["waiting_for_answer"] = True
+                    current_question = self._get_current_question(session_id)
+                    response = f"Great! I'm excited to see how you do. Here's your first question:\n\n{current_question}\n\nTake your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
+                    self._add_to_context(session_id, "assistant", response)
+                    return response
+                else:
+                    return "Let me know when you're ready to begin!"
+
+            # Handle answer to current question
+            if session_state["waiting_for_answer"]:
+                current_question = self._get_current_question(session_id)
                 analysis_request = InterviewAnalysisRequest(
                     jobRole=interview_session.jobRole,
                     jobLevel=interview_session.jobLevel,
@@ -272,7 +299,7 @@ class MainConversationService:
                     answer=last_user_message
                 )
                 analysis_response = await analyze_interview_response(self.client, analysis_request)
-                
+
                 # Format the analysis response as a string
                 feedback_text = f"""Feedback on your response:
 Score: {analysis_response.score}/10
@@ -286,37 +313,52 @@ Areas for Improvement:
 
 Tips:
 {chr(10).join(f"- {tip}" for tip in analysis_response.tips)}"""
-
-                self._add_to_context(interview_session.session_id, "assistant", feedback_text)
-                self._advance_to_next_question(interview_session.session_id)
                 
-                return response
+                self._add_to_context(session_id, "assistant", feedback_text)
+                self._advance_to_next_question(session_id)
 
-            # Generate AI response for ongoing conversation
-            response = await self.client.chat.completions.create(
-                model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
-                max_tokens=1000,
-                temperature=0.1,  # Use consistent low temperature for stable responses
-                top_p=0.9,
-                extra_body={
-                    "top_k": 50
-                },
-                messages=context
-            )
+                # Check if more questions remain
+                if self._current_question_index[session_id] < len(self._session_questions[session_id]):
+                    next_question = self._get_current_question(session_id)
+                    response = f"Here's your next question:\n\n{next_question}\n\nTake your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
+                    self._add_to_context(session_id, "assistant", response)
+                    session_state["waiting_for_answer"] = True
+                    return feedback_text + "\n\n" + response
+                else:
+                    session_state["waiting_for_answer"] = False
+                    return feedback_text + "\n\nThat's the end of the interview. Great job!"
             
-            message = response.choices[0].message
-            content = message.content
+            # Defensive: If not waiting for answer, prompt user
+            if not session_state["waiting_for_answer"]:
+                return "No rush, take your time to answer the question."
+
+
+
+            # # Generate AI response for ongoing conversation
+            # response = await self.client.chat.completions.create(
+            #     model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
+            #     max_tokens=1000,
+            #     temperature=0.1,  # Use consistent low temperature for stable responses
+            #     top_p=0.9,
+            #     extra_body={
+            #         "top_k": 50
+            #     },
+            #     messages=context
+            # )
             
-            if not content:
-                content = "I apologize, but I didn't receive a proper response. Let me try again."
+            # message = response.choices[0].message
+            # content = message.content
             
-            # Clean up response content
-            if "<think>" in content:
-                content = content.split("</think>")[-1].strip()
+            # if not content:
+            #     content = "I apologize, but I didn't receive a proper response. Let me try again."
             
-            self._add_to_context(interview_session.session_id, "assistant", content)
+            # # Clean up response content
+            # if "<think>" in content:
+            #     content = content.split("</think>")[-1].strip()
             
-            return content
+            # self._add_to_context(interview_session.session_id, "assistant", content)
+            
+            # return content
         
         except Exception as e:
             logger.error(f"Error in conversation_with_user_response: {e}")
