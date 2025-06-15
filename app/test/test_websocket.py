@@ -31,7 +31,7 @@ async def test_websocket():
     # First verify we can get questions
     questions_result = await test_get_questions()
     
-    uri = "ws://localhost:8000/api/ws"
+    uri = "ws://127.0.0.1:8000/api/ws"
     async with websockets.connect(uri) as websocket:
         # Send initial session setup
         await websocket.send(json.dumps({
@@ -73,4 +73,22 @@ async def test_websocket():
         }))
 
         response = await websocket.recv()
-        print("\nResponse after answer:", response)
+        print("\nResponse after answer 1:", response)
+
+        # wait for 2 seconds
+        await asyncio.sleep(2)
+        
+        await websocket.send(json.dumps({
+            "type": "message",
+            "content": json.dumps({
+                "jobRole": jobRole,
+                "jobLevel": jobLevel,
+                "questionType": questionType,
+                "interviewType": questionType,
+                "question": questions_result["questions"][1],
+                "answer": "When our production API started experiencing intermittent 500 errors with no clear pattern in the logs, affecting about 15% of user requests, I systematically approached the problem by first reproducing it in our staging environment, then methodically checking each system component - database connections, memory usage, and third-party service calls - while documenting my findings and collaborating with the DevOps team to analyze server metrics. Through this process, I discovered that a recent code deployment had introduced a race condition in our caching layer that only manifested under high concurrent load. Within 48 hours, I implemented a thread-safe solution and established additional monitoring alerts, which reduced our error rate to under 0.1% and prevented similar issues from reaching production in the future."
+            })
+        }))
+
+        response = await websocket.recv()
+        print("\nResponse after answer 2:", response)
