@@ -21,7 +21,8 @@ from typing import Dict, List
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from app.schemas.websocket.websocket_message import WebSocketMessage, WebSocketUserMessage
 from app.services.tools.get_questions import get_questions
-import json
+from app.services.text_answers_service import analyze_interview_response
+from app.schemas.text_schemas.interview_analysis_request import InterviewAnalysisRequest
 
 class MainConversationService:
     """
@@ -261,6 +262,32 @@ class MainConversationService:
                 response = f"Great! I'm excited to see how you do. Here's your first question:\n\n{current_question}\n\nTake your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
                 
                 self._add_to_context(interview_session.session_id, "assistant", response)
+                # User answers the question
+                analysis_request = InterviewAnalysisRequest(
+                    jobRole=interview_session.jobRole,
+                    jobLevel=interview_session.jobLevel,
+                    interviewType=interview_session.questionType,
+                    questionType=interview_session.questionType,
+                    question=current_question,
+                    answer=last_user_message
+                )
+                analysis_response = await analyze_interview_response(self.client, analysis_request)
+                
+                # Format the analysis response as a string
+                feedback_text = f"""Feedback on your response:
+Score: {analysis_response.score}/10
+{analysis_response.feedback}
+
+Strengths:
+{chr(10).join(f"- {strength}" for strength in analysis_response.strengths)}
+
+Areas for Improvement:
+{chr(10).join(f"- {improvement}" for improvement in analysis_response.improvements)}
+
+Tips:
+{chr(10).join(f"- {tip}" for tip in analysis_response.tips)}"""
+
+                self._add_to_context(interview_session.session_id, "assistant", feedback_text)
                 self._advance_to_next_question(interview_session.session_id)
                 
                 return response
