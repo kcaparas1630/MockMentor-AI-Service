@@ -59,3 +59,18 @@ async def test_websocket():
         response_data = json.loads(response)
         assert any(question in response_data["content"] for question in questions_result["questions"]), \
             "Response does not contain any of the actual questions from the database"
+
+        await websocket.send(json.dumps({
+            "type": "message",
+            "content": json.dumps({
+                "jobRole": jobRole,
+                "jobLevel": jobLevel,
+                "questionType": questionType,
+                "interviewType": questionType,
+                "question": questions_result["questions"][0],
+                "answer": "During my capstone project, I served as project coordinator and lead backend developer for a 5-person team building an e-commerce platform for a local nonprofit, where I managed timelines, designed the database architecture, and mentored a struggling team member through Node.js development. When we encountered a major payment integration issue three weeks before deadline, I researched solutions, coordinated with frontend developers to implement Stripe, and initiated daily standups to keep us on track. We delivered on time with full functionality, received the top grade in our class, and the nonprofit continued using our platform - plus the team member I mentored gained enough confidence to land a developer internship."
+            })
+        }))
+
+        response = await websocket.recv()
+        print("\nResponse after answer:", response)
