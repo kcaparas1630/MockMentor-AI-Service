@@ -123,8 +123,6 @@ class MainConversationService:
             self._current_question_index[interview_session.session_id] = 0
             
             logger.info(f"Stored {len(questions_result['questions'])} questions for session {interview_session.session_id}")
-            logger.info(f"First question: {questions_result['questions'][0]}")
-            logger.info(f"Second question: {questions_result['questions'][1]}")
             
             return questions_result['questions']
             
