@@ -43,7 +43,7 @@ class MainConversationService:
     _conversation_contexts: Dict[str, List[Dict]] = {}  # Store conversation history for each session
     _session_questions: Dict[str, List[str]] = {}  # Store questions for each session
     _current_question_index: Dict[str, int] = {}  # Track current question index for each session
-    _session_state: Dict[str, Dict] = {}
+    _session_state: Dict[str, Dict] = {} # Track session state for each session
 
     def __new__(cls):
         """
@@ -272,11 +272,18 @@ class MainConversationService:
             last_user_message = None
             for msg in reversed(context):
                 if msg["role"] == "user":
-                    last_user_message = msg["content"].strip()
+                    last_user_message = msg["content"].strip() # remove whitespace
                     break
             
             # Handle readiness
             if not session_state["ready"]:
+                ##############################################################################
+                #   1. Check if user is ready to start                                       #
+                #   2. If user is ready, set session state to ready and waiting for answer.  #
+                #   3. Get the current question.                                             #
+                #   4. Add the response to the context.                                      #
+                #   5. Return the response.                                                  #
+                ##############################################################################
                 if last_user_message and any(ready in last_user_message.lower() for ready in ["yes", "ready", "i'm ready", "let's start", "let's go"]):
                     session_state["ready"] = True
                     session_state["waiting_for_answer"] = True
@@ -289,6 +296,17 @@ class MainConversationService:
 
             # Handle answer to current question
             if session_state["waiting_for_answer"]:
+                ##################################################################################
+                #   1. Get the current question.                                                 #
+                #   2. Analyze the user's response.                                              #
+                #   3. Format the analysis response as a string.                                 #
+                #   4. Add the analysis response to the context.                                 #
+                #   5. Advance to the next question.                                             #
+                #   6. Check if more questions remain.                                           #
+                #   7. If more questions remain, set session state to waiting for answer.        #
+                #   8. If no more questions remain, set session state to not waiting for answer. #
+                #   9. Return the feedback text.                                                 #
+                ##################################################################################
                 current_question = self._get_current_question(session_id)
                 analysis_request = InterviewAnalysisRequest(
                     jobRole=interview_session.jobRole,
@@ -331,35 +349,7 @@ Tips:
             # Defensive: If not waiting for answer, prompt user
             if not session_state["waiting_for_answer"]:
                 return "No rush, take your time to answer the question."
-
-
-
-            # # Generate AI response for ongoing conversation
-            # response = await self.client.chat.completions.create(
-            #     model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
-            #     max_tokens=1000,
-            #     temperature=0.1,  # Use consistent low temperature for stable responses
-            #     top_p=0.9,
-            #     extra_body={
-            #         "top_k": 50
-            #     },
-            #     messages=context
-            # )
             
-            # message = response.choices[0].message
-            # content = message.content
-            
-            # if not content:
-            #     content = "I apologize, but I didn't receive a proper response. Let me try again."
-            
-            # # Clean up response content
-            # if "<think>" in content:
-            #     content = content.split("</think>")[-1].strip()
-            
-            # self._add_to_context(interview_session.session_id, "assistant", content)
-            
-            # return content
-        
         except Exception as e:
             logger.error(f"Error in conversation_with_user_response: {e}")
             raise e
