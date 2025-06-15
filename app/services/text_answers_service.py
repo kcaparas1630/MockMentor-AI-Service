@@ -1,25 +1,40 @@
-import os
-import re
 from openai import AsyncOpenAI
 from loguru import logger
 from app.schemas.text_schemas.interview_feedback_response import InterviewFeedbackResponse
 from app.schemas.text_schemas.interview_request import InterviewRequest
 from app.schemas.text_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.helper.extract_regex_feedback import extract_regex_feedback
+
 class TextAnswersService:
-    def __init__(self):
-        api_key = os.getenv("NEBIUS_API_KEY")
-        if not api_key:
-            raise RuntimeError("NEBIUS_API_KEY environment variable is not set")
-        self.client = AsyncOpenAI(
-            base_url="https://api.studio.nebius.com/v1",
-            api_key=api_key
-        )
+    """
+    Service class for analyzing interview responses and providing feedback.
+    """
     
-    async def analyze_interview_response(self, analysis_request: InterviewAnalysisRequest):
+    def __init__(self, client: AsyncOpenAI):
+        """
+        Initialize the service with an OpenAI client.
+        
+        Args:
+            client (AsyncOpenAI): The OpenAI client instance.
+        """
+        self.client = client
+    
+    async def analyze_response(self, analysis_request: InterviewAnalysisRequest) -> InterviewFeedbackResponse:
+        """
+        Analyze an interview response and provide feedback.
+        
+        Args:
+            analysis_request (InterviewAnalysisRequest): The request containing the interview details and response.
+            
+        Returns:
+            InterviewFeedbackResponse: The analysis results including score, feedback, strengths, and improvements.
+        """
+        return await analyze_interview_response(self.client, analysis_request)
+
+async def analyze_interview_response(client: AsyncOpenAI, analysis_request: InterviewAnalysisRequest) -> InterviewFeedbackResponse:
         try:
             # Make the prompt more explicit about JSON formatting
-            response = await self.client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
                 max_tokens=1000,
                 temperature=0.5,
