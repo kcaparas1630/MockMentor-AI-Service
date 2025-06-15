@@ -1,32 +1,61 @@
-
 import asyncio
 import websockets
 import json
 import pytest
+from app.services.tools.get_questions import get_questions
+
+jobRole = "Software Engineer"
+jobLevel = "entry"
+questionType = "behavioral"
+
+@pytest.mark.asyncio
+async def test_get_questions():
+    """Test that we can fetch questions from the database"""
+    result = await get_questions(
+        jobRole=jobRole,
+        jobLevel=jobLevel,
+        questionType=questionType
+    )
+    
+    assert result["success"] is True, "Failed to fetch questions from database"
+    assert result["count"] > 0, "No questions found in database"
+    assert len(result["questions"]) > 0, "Questions list is empty"
+    
+    # Print the first question for verification
+    print("\nFirst question from database:", result["questions"][0])
+    
+    return result
 
 @pytest.mark.asyncio
 async def test_websocket():
+    # First verify we can get questions
+    questions_result = await test_get_questions()
+    
     uri = "ws://localhost:8000/api/ws"
     async with websockets.connect(uri) as websocket:
         # Send initial session setup
         await websocket.send(json.dumps({
             "session_id": "123",
             "user_name": "Kent Hudson Caparas",
-            "job_role": "Software Developer",
-            "job_level": "Entry-Level",
-            "interview_type": "Behavioural"
+            "jobRole": jobRole,
+            "jobLevel": jobLevel,
+            "questionType": questionType
         }))
         
         # Get initial response
         response = await websocket.recv()
-        print("Received:", response)
+        print("\nInitial response:", response)
         
         # Send a message
         await websocket.send(json.dumps({
-            "session_id": "123",
-            "message": "Yes, I am ready!"
+            "content": "Yes, I am ready!"
         }))
         
         # Get response
         response = await websocket.recv()
-        print("Received:", response)
+        print("\nResponse after ready:", response)
+        
+        # Verify that the response contains one of our actual questions
+        response_data = json.loads(response)
+        assert any(question in response_data["content"] for question in questions_result["questions"]), \
+            "Response does not contain any of the actual questions from the database"
