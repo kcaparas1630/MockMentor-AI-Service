@@ -31,7 +31,7 @@ class TextAnswersService:
         """
         return await analyze_interview_response(self.client, analysis_request)
 
-async def analyze_interview_response(client: AsyncOpenAI, analysis_request: InterviewAnalysisRequest):
+async def analyze_interview_response(client: AsyncOpenAI, analysis_request: InterviewAnalysisRequest) -> InterviewFeedbackResponse:
         try:
             # Make the prompt more explicit about JSON formatting
             response = await client.chat.completions.create(
