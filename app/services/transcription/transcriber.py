@@ -2,10 +2,18 @@ from faster_whisper import WhisperModel
 import tempfile
 import base64
 
-# Load once globally
-model = WhisperModel("base", device="cpu", compute_type="int8")
+_model = None
+
+# Lazy load the model only when needed. 
+# If transcription has problems in production, try to increase the cloud run memory allocation, or use tiny model.
+def get_model():
+    global _model
+    if _model is None:
+        _model = WhisperModel("base", device="cpu", compute_type="int8")
+    return _model
 
 def transcribe_base64_audio(base64_data: str) -> str:
+    model = get_model();
     # Decode to audio
     audio_bytes = base64.b64decode(base64_data)
 
