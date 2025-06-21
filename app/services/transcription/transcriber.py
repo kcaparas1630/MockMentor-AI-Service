@@ -3,7 +3,7 @@ import tempfile
 import base64
 
 # Load once globally
-model = WhisperModel("base")
+model = WhisperModel("base", device="cpu", compute_type="int8")
 
 def transcribe_base64_audio(base64_data: str) -> str:
     # Decode to audio
