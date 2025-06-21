@@ -398,7 +398,7 @@ Tips:
         try:
             # Wait for initial connection message with session details
             initial_message: dict = await websocket.receive_json()
-            session = InterviewSession(**initial_message)
+            session = InterviewSession(**initial_message['content'])
             
             # Send initial greeting
             response: str = await self.conversation_with_user_response(session)
