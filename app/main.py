@@ -12,6 +12,9 @@ from app.routes.ai_coach_conversation import router as ai_coach_conversation_rou
 # CORS Middleware
 from app.core.cors_middleware import add_cors_middleware
 
+# Transcriber
+from app.routes import transcription_ws
+
 from loguru import logger
 
 # Load environment variables
@@ -37,3 +40,4 @@ except Exception as e:
 app.include_router(health_router)
 app.include_router(interview_feedback_router)
 app.include_router(ai_coach_conversation_router)
+app.include_router(transcription_ws.router)
