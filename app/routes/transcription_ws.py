@@ -50,7 +50,7 @@ async def transcription_websocket(websocket: WebSocket):
                 try:
                     await websocket.send_json({
                         "type": "error",
-                        "message": f"Processing error: {str(e)}"
+                        "message": "An error occurred while processing the audio"
                     })
                 except WebSocketDisconnect:
                     logger.info("WebSocket disconnected during error handling")
