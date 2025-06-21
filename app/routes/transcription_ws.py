@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.services.transcription.transcriber import transcribe_base64_audio
+from loguru import logger
 
 router = APIRouter()
 
@@ -13,7 +14,7 @@ router = APIRouter()
 @router.websocket("/ws/transcription")
 async def transcription_websocket(websocket: WebSocket):
     await websocket.accept()
-    print("WebSocket connected for transcription")
+    logger.info("WebSocket connected for transcription")
 
     try:
         while True:
@@ -41,11 +42,21 @@ async def transcription_websocket(websocket: WebSocket):
                     "text": transcript
                 })
 
+            except WebSocketDisconnect:
+                logger.info("WebSocket disconnected")
+                break
             except Exception as e:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"Processing error: {str(e)}"
-                })
+                logger.error(f"Processing error: {e}")
+                try:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": f"Processing error: {str(e)}"
+                    })
+                except WebSocketDisconnect:
+                    logger.info("WebSocket disconnected during error handling")
+                    break
 
     except WebSocketDisconnect:
-        print("WebSocket disconnected")
+        logger.info("WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Unexpected error in WebSocket handler: {e}")
