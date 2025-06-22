@@ -5,7 +5,8 @@ from loguru import logger
 
 router = APIRouter(
     prefix="/api",
-    tags=["ai-coach-conversation"]
+    tags=["ai-coach-conversation"],
+    responses={404: {"description": "Not found"}}
 )
 
 @router.websocket("/ws")

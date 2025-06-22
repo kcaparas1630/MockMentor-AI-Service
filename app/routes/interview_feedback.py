@@ -7,7 +7,8 @@ import asyncio
 
 router = APIRouter(
     prefix="/api",
-    tags=["interview-feedback"]
+    tags=["interview-feedback"],
+    responses={404: {"description": "Not found"}}
 )
 
 
