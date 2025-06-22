@@ -4,7 +4,8 @@ from app.schemas.health_response import HealthResponse
 from loguru import logger
 router = APIRouter(
     prefix="/api",
-    tags=["health"]
+    tags=["health"],
+    responses={404: {"description": "Not found"}}
 )
 
 @router.get("/health", response_model=HealthResponse)
