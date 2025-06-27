@@ -43,7 +43,7 @@ async def transcription_websocket(websocket: WebSocket):
                 transcript = transcribe_base64_audio(base64_data)
                 await websocket.send_json({
                     "type": "transcript",
-                    "text": transcript
+                    "content": transcript
                 })
 
             except WebSocketDisconnect:
