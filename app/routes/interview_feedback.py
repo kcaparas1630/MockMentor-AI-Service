@@ -21,9 +21,9 @@ Author: @kcaparas1630
 
 """
 from fastapi import APIRouter, HTTPException
-from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
-from app.services.text_answers_service import TextAnswersService
+from ..schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
+from ..schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
+from ..services.text_answers_service import TextAnswersService
 from loguru import logger
 
 router = APIRouter(

@@ -20,8 +20,8 @@ Author: @kcaparas1630
 
 """
 from fastapi import APIRouter, Request
-from app.core.route_limiters import limiter
-from app.schemas.health_response import HealthResponse
+from ..core.route_limiters import limiter
+from ..schemas.health_response import HealthResponse
 from loguru import logger
 router = APIRouter(
     prefix="/api",

@@ -1,19 +1,44 @@
+"""
+Description:
+This module provides functionality to transcribe audio data encoded in base64 format using the Faster Whisper model
+
+Dependencies:
+- faster-whisper: For audio transcription.
+- tempfile: For creating temporary files.
+- base64: For decoding base64 audio data.
+
+Authors: @kcaparas1630
+         @William226
+"""
 from faster_whisper import WhisperModel
 import tempfile
 import base64
 
 _model = None
 
-# Lazy load the model only when needed. 
-# If transcription has problems in production, try to increase the cloud run memory allocation, or use tiny model.
+
 def get_model():
+    """
+    Initializes and returns the WhisperModel instance.
+    This function ensures that the model is loaded only once and reused for subsequent calls.
+    
+    Returns:
+        WhisperModel: An instance of the WhisperModel configured for transcription.
+    """
     global _model
     if _model is None:
         _model = WhisperModel("base", device="cpu", compute_type="int8")
     return _model
 
 def transcribe_base64_audio(base64_data: str) -> str:
-    model = get_model();
+    """
+    Transcribes audio data encoded in base64 format to text.
+    Args:
+        base64_data (str): Base64 encoded audio data.
+    Returns:
+        str: Transcribed text from the audio data.
+    """
+    model = get_model()
     # Decode to audio
     audio_bytes = base64.b64decode(base64_data)
 

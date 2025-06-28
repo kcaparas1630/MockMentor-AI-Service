@@ -20,7 +20,7 @@ Author: @kcaparas1630
 
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from app.services.main_conversation_service import MainConversationService
+from ..services.main_conversation.main_conversation_service import MainConversationService
 from loguru import logger
 
 router = APIRouter(
