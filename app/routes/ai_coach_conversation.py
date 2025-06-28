@@ -1,7 +1,27 @@
+"""
+WebSocket route for AI Coach Conversation
+
+Description:
+This module defines a FastAPI route for handling WebSocket connections for AI Coach conversations.
+It accepts WebSocket connections and processes messages using the MainConversationService.
+
+Arguments:
+- websocket: WebSocket connection object
+
+Returns:
+- None, but handles incoming messages and sends responses through the WebSocket connection.
+
+Dependencies:
+- fastapi: For creating the FastAPI application and handling WebSocket connections.
+- app.services.main_conversation_service: For processing conversation logic.
+- loguru: For logging information about the WebSocket connection and any exceptions that occur.
+
+Author: @kcaparas1630
+
+"""
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.services.main_conversation_service import MainConversationService
 from loguru import logger
-
 
 router = APIRouter(
     prefix="/api",

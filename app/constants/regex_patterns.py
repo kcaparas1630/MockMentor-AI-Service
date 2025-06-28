@@ -1,3 +1,14 @@
+"""
+Description: 
+This module contains precompiled regex patterns for extracting specific fields from JSON-like strings.
+
+Dependencies:
+- re: Python's built-in regular expression module for pattern matching.
+
+Author: @kcaparas1630
+
+"""
+
 import re
 
 # Compile regex patterns once for better performance
