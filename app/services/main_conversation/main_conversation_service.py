@@ -33,9 +33,8 @@ import os
 from openai import AsyncOpenAI
 from loguru import logger
 from ...schemas.main.interview_session import InterviewSession
-from ...schemas.main.user_message import UserMessage
 from typing import Dict, List
-from ..speech_to_text.text_answers_service import analyze_interview_response
+from ..speech_to_text.text_answers_service import TextAnswersService
 from ...schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from .tools.question_utils.fetch_and_store_questions import fetch_and_store_questions
 from .tools.question_utils.get_current_question import get_current_question
@@ -206,7 +205,8 @@ class MainConversationService:
                     question=current_question,
                     answer=last_user_message
                 )
-                analysis_response = await analyze_interview_response(self.client, analysis_request)
+                text_answers_service = TextAnswersService()
+                analysis_response = await text_answers_service.analyze_response(analysis_request)
 
                 # Format the analysis response as a string
                 feedback_text = f"""Feedback on your response:

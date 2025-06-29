@@ -23,7 +23,7 @@ Author: @kcaparas1630
 from fastapi import APIRouter, HTTPException
 from ..schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from ..schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
-from ..services.text_answers_service import TextAnswersService
+from ..services.speech_to_text.text_answers_service import TextAnswersService
 from loguru import logger
 
 router = APIRouter(
@@ -40,7 +40,7 @@ async def get_interview_feedback(request: InterviewAnalysisRequest):
     """
     try:
         service = TextAnswersService()
-        feedback = await service.analyze_interview_response(request)
+        feedback = await service.analyze_response(request)
         
         return feedback
     except Exception as e:
