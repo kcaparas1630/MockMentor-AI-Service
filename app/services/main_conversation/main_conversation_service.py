@@ -205,7 +205,7 @@ class MainConversationService:
                     question=current_question,
                     answer=last_user_message
                 )
-                text_answers_service = TextAnswersService()
+                text_answers_service = TextAnswersService(self.client)
                 analysis_response = await text_answers_service.analyze_response(analysis_request)
 
                 # Format the analysis response as a string
