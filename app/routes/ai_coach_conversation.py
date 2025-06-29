@@ -13,14 +13,14 @@ Returns:
 
 Dependencies:
 - fastapi: For creating the FastAPI application and handling WebSocket connections.
-- app.services.main_conversation_service: For processing conversation logic.
+- app.services.main_conversation.tools.handle_websocket_connecton: For processing conversation logic.
 - loguru: For logging information about the WebSocket connection and any exceptions that occur.
 
 Author: @kcaparas1630
 
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from ..services.main_conversation.main_conversation_service import MainConversationService
+from ..services.main_conversation.tools.websocket_utils.handle_websocket_connection import handle_websocket_connection
 from loguru import logger
 
 router = APIRouter(
@@ -32,9 +32,8 @@ router = APIRouter(
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    service = MainConversationService()
     try:
-        await service.handle_websocket_connection(websocket)
+        await handle_websocket_connection(websocket)
     except WebSocketDisconnect:
         logger.info("WebSocket connection closed")
     except Exception as e:
