@@ -1,6 +1,27 @@
-from app.schemas.text_schemas.interview_analysis_request import InterviewAnalysisRequest
+"""
+Description:
+Extract feedback from content using regex patterns
+This module provides a function to extract structured feedback from interview analysis content using predefined regex patterns.
+
+Arguments:
+- content: The text content from which to extract feedback.
+- request: An instance of InterviewAnalysisRequest containing additional context or parameters.
+
+Returns:
+- An instance of InterviewFeedbackResponse containing structured feedback data.
+
+Dependencies:
+- app.schemas.session_evaluation_schemas.interview_analysis_request: For defining the request schema.
+- app.constants.regex_patterns: For accessing precompiled regex patterns.
+- app.schemas.session_evaluation_schemas.interview_feedback_response: For defining the response schema.
+- re: Python's built-in regular expression module for pattern matching.
+
+Author: @kcaparas1630
+
+"""
+from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.constants.regex_patterns import REGEX_PATTERNS
-from app.schemas.text_schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
 import re
 
 # Extract feedback from the content using regex patterns

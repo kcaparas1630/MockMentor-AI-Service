@@ -2,7 +2,7 @@ import asyncio
 import websockets
 import json
 import pytest
-from app.services.tools.get_questions import get_questions
+from app.services.main_conversation.tools.question_utils.get_questions import get_questions
 
 jobRole = "Software Engineer"
 jobLevel = "entry"
@@ -35,11 +35,13 @@ async def test_websocket():
     async with websockets.connect(uri) as websocket:
         # Send initial session setup
         await websocket.send(json.dumps({
-            "session_id": "123",
-            "user_name": "Kent Hudson Caparas",
-            "jobRole": jobRole,
-            "jobLevel": jobLevel,
-            "questionType": questionType
+            "content": {
+                "session_id": "123",
+                "user_name": "Kent Hudson Caparas",
+                "jobRole": jobRole,
+                "jobLevel": jobLevel,
+                "questionType": questionType
+            }
         }))
         
         # Get initial response

@@ -1,4 +1,27 @@
-import json
+"""
+Description:
+This module provides a function to fetch interview questions from a MongoDB database based on job role, job level, and question type.
+
+Arguments:
+- jobRole: The job role for which questions are being fetched (e.g., "Software Engineer").
+- jobLevel: The experience level for the job (e.g., "Entry", "Mid", "Senior").
+- questionType: The type of questions to fetch (e.g., "Behavioral", "Technical", etc..).
+
+Returns:
+- A dictionary containing:
+    - success: Boolean indicating if the operation was successful.
+    - questions: A list of interview questions matching the criteria.
+    - count: The number of questions found.
+    - criteria: A dictionary containing the job role, job level, and question type used for the query.
+
+Dependencies:
+- pymongo: For MongoDB interactions.
+- os: For environment variable access.
+- dotenv: For loading environment variables from a .env file.
+- loguru: For logging.
+
+author: @kcaparas1630
+"""
 from pymongo import MongoClient
 import os
 from dotenv import load_dotenv

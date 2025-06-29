@@ -1,3 +1,13 @@
+"""
+Description: 
+This module defines the schema for the interview feedback response.
+
+Dependencies:
+- pydantic: For data validation and settings management.
+- typing: For type annotations.
+
+Author: @kcaparas1630
+"""
 from pydantic import BaseModel, Field
 from typing import List
 
