@@ -21,7 +21,7 @@ Authors: @kcaparas1630
 
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from ..services.transcription.transcriber import transcribe_base64_audio
+from app.services.transcription.transcriber import transcribe_base64_audio
 from loguru import logger
 
 router = APIRouter(

@@ -18,9 +18,9 @@ Dependencies:
 Author: @kcaparas1630
 """
 
-from .....schemas.main.user_message import UserMessage
-from .....schemas.main.interview_session import InterviewSession
-from ...main_conversation_service import MainConversationService
+from app.schemas.main.user_message import UserMessage
+from app.schemas.main.interview_session import InterviewSession
+from app.services.main_conversation.main_conversation_service import MainConversationService
 from loguru import logger
 
 async def handle_user_message(user_message: UserMessage):

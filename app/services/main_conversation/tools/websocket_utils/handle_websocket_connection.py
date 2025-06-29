@@ -16,7 +16,7 @@ Dependencies:
 - app.schemas.main.interview_session: For interview session data models.
 - app.schemas.main.user_message: For user message data models.
 - app.services.main_conversation.main_conversation_service: For conversation management.
-- .handle_user_message: For processing individual user messages.
+- app.services.main_conversation.tools.websocket_utils.handle_user_message: For processing individual user messages.
 
 Author: @kcaparas1630
 """
@@ -24,10 +24,10 @@ Author: @kcaparas1630
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from loguru import logger
 from app.schemas.websocket.websocket_message import WebSocketMessage, WebSocketUserMessage
-from .....schemas.main.interview_session import InterviewSession
-from .....schemas.main.user_message import UserMessage
-from ...main_conversation_service import MainConversationService
-from .handle_user_message import handle_user_message
+from app.schemas.main.interview_session import InterviewSession
+from app.schemas.main.user_message import UserMessage
+from app.services.main_conversation.main_conversation_service import MainConversationService
+from app.services.main_conversation.tools.websocket_utils.handle_user_message import handle_user_message
 
 async def handle_websocket_connection(websocket: WebSocket):
     """

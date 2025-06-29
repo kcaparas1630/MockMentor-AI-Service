@@ -20,10 +20,12 @@ Dependencies:
 Author: @kcaparas1630
 
 """
+import os
+from openai import AsyncOpenAI
 from fastapi import APIRouter, HTTPException
-from ..schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from ..schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
-from ..services.speech_to_text.text_answers_service import TextAnswersService
+from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.services.speech_to_text.text_answers_service import TextAnswersService
 from loguru import logger
 
 router = APIRouter(
@@ -39,7 +41,8 @@ async def get_interview_feedback(request: InterviewAnalysisRequest):
     Get interview feedback for a given question and user response
     """
     try:
-        service = TextAnswersService()
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        service = TextAnswersService(client)
         feedback = await service.analyze_response(request)
         
         return feedback

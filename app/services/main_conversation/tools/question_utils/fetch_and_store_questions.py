@@ -10,14 +10,14 @@ questions based on job criteria and storing them in the session's question cache
 
 Dependencies:
 - app.schemas.main.interview_session: For interview session data models.
-- .get_questions: For database question retrieval.
+- app.services.main_conversation.tools.question_utils.get_questions: For database question retrieval.
 - loguru: For logging operations.
 
 Author: @kcaparas1630
 """
 
-from .....schemas.main.interview_session import InterviewSession
-from .get_questions import get_questions
+from app.schemas.main.interview_session import InterviewSession
+from app.services.main_conversation.tools.question_utils.get_questions import get_questions
 from loguru import logger
 
 async def fetch_and_store_questions(interview_session: InterviewSession, _session_questions: dict, _current_question_index: dict) -> list:

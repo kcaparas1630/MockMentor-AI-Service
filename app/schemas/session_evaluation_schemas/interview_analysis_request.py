@@ -9,7 +9,7 @@ Dependencies:
 Author: @kcaparas1630
 """
 from pydantic import Field
-from .interview_request import InterviewRequest
+from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
 
 class InterviewAnalysisRequest(InterviewRequest):
     jobRole: str = Field(default="Software Engineer")

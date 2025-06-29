@@ -19,9 +19,9 @@ Dependencies:
 Author: @kcaparas1630
 
 """
-from ..schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from ..constants.regex_patterns import REGEX_PATTERNS
-from ..schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
+from app.constants.regex_patterns import REGEX_PATTERNS
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
 import re
 
 # Extract feedback from the content using regex patterns

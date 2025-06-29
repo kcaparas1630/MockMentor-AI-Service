@@ -13,7 +13,7 @@ Dependencies:
 - openai: For AI client interactions.
 - loguru: For logging operations.
 - app.schemas.session_evaluation_schemas: For interview analysis and feedback data models.
-- .tools.response_feedback: For the core response analysis functionality.
+- app.services.speech_to_text.tools.response_feedback: For the core response analysis functionality.
 
 Author: @kcaparas1630
 """
@@ -23,7 +23,7 @@ from loguru import logger
 from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
 from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from .tools.response_feedback import response_feedback
+from app.services.speech_to_text.tools.response_feedback import response_feedback
 
 class TextAnswersService:
     """

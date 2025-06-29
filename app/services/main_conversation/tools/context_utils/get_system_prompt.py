@@ -15,7 +15,7 @@ Dependencies:
 Author: @kcaparas1630
 """
 
-from .....schemas.main.interview_session import InterviewSession
+from app.schemas.main.interview_session import InterviewSession
 
 def get_system_prompt(interview_session: InterviewSession) -> str:
     """

@@ -20,10 +20,10 @@ Author: @kcaparas1630
 """
 
 from openai import AsyncOpenAI
-from ....schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from ....schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
-from ....schemas.session_evaluation_schemas.interview_request import InterviewRequest
-from ....helper.extract_regex_feedback import extract_regex_feedback
+from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
+from app.helper.extract_regex_feedback import extract_regex_feedback
 import logging
 
 logger = logging.getLogger(__name__)

@@ -13,14 +13,14 @@ Returns:
 
 Dependencies:
 - fastapi: For creating the FastAPI application and handling WebSocket connections.
-- app.services.main_conversation.tools.handle_websocket_connecton: For processing conversation logic.
+- app.services.main_conversation.tools.websocket_utils.handle_websocket_connection: For processing conversation logic.
 - loguru: For logging information about the WebSocket connection and any exceptions that occur.
 
 Author: @kcaparas1630
 
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from ..services.main_conversation.tools.websocket_utils.handle_websocket_connection import handle_websocket_connection
+from app.services.main_conversation.tools.websocket_utils.handle_websocket_connection import handle_websocket_connection
 from loguru import logger
 
 router = APIRouter(
