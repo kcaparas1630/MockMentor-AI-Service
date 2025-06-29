@@ -269,7 +269,7 @@ class MainConversationService:
                     session_state["ready"] = True
                     session_state["waiting_for_answer"] = True
                     current_question = get_current_question(session_id, self._session_questions, self._current_question_index)
-                    response = f"Great! I'm excited to see how you do. Here's your first question:\n\n{current_question}\n\nTake your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
+                    response = f"Great! I'm excited to see how you do. Here's your first question {current_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
                     self.add_to_context(session_id, "assistant", response)
                     return response
                 else:
