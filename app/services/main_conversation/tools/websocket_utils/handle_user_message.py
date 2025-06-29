@@ -11,7 +11,6 @@ for ongoing interview conversations.
 
 Dependencies:
 - app.schemas.main.user_message: For user message data models.
-- app.schemas.main.interview_session: For interview session data models.
 - app.services.main_conversation.main_conversation_service: For conversation management.
 - loguru: For logging operations.
 
@@ -19,7 +18,6 @@ Author: @kcaparas1630
 """
 
 from app.schemas.main.user_message import UserMessage
-from app.schemas.main.interview_session import InterviewSession
 from app.services.main_conversation.main_conversation_service import MainConversationService
 from loguru import logger
 
@@ -27,10 +25,8 @@ async def handle_user_message(user_message: UserMessage):
     """
     Handle a user's message in an ongoing interview session.
     
-    This function processes user messages by adding them to the conversation context
-    and generating appropriate AI responses. It creates a minimal interview session
-    object for the conversation service and delegates the response generation to
-    the main conversation service.
+    This function processes user messages by using the continue_conversation method
+    which only requires session_id and user message for ongoing conversations.
     
     Args:
         user_message (UserMessage): The user's message object containing the session ID
@@ -49,15 +45,7 @@ async def handle_user_message(user_message: UserMessage):
     """
     try:
         service = MainConversationService()
-        service.add_to_context(user_message.session_id, "user", user_message.message)
-        session = InterviewSession(
-            session_id=user_message.session_id,
-            user_name="",  # Not needed for ongoing conversation
-            jobRole="",   # Not needed for ongoing conversation
-            jobLevel="",  # Not needed for ongoing conversation
-            questionType=""  # Not needed for ongoing conversation
-        )
-        return await service.conversation_with_user_response(session)
+        return await service.continue_conversation(user_message.session_id, user_message.message)
         
     except Exception as e:
         logger.error(f"Error in handle_user_message: {e}")
