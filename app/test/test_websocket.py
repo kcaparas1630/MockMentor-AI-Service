@@ -2,7 +2,7 @@ import asyncio
 import websockets
 import json
 import pytest
-from app.services.tools.get_questions import get_questions
+from app.services.main_conversation.tools.question_utils.get_questions import get_questions
 
 jobRole = "Software Engineer"
 jobLevel = "entry"
