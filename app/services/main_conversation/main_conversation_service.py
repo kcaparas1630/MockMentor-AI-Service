@@ -40,6 +40,7 @@ from app.services.main_conversation.tools.question_utils.fetch_and_store_questio
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
 from app.services.main_conversation.tools.question_utils.advance_to_next_question import advance_to_next_question
 from app.services.main_conversation.tools.context_utils.get_system_prompt import get_system_prompt
+from app.services.main_conversation.tools.context_utils.get_feedback_opening_line import get_feedback_opening_line
 
 class MainConversationService:
     """
@@ -297,18 +298,16 @@ class MainConversationService:
                 analysis_response = await text_answers_service.analyze_response(analysis_request)
 
                 # Format the analysis response as a string
-                feedback_text = f"""Feedback on your response:
-Score: {analysis_response.score}/10
-{analysis_response.feedback}
-
-Strengths:
-{chr(10).join(f"- {strength}" for strength in analysis_response.strengths)}
-
-Areas for Improvement:
-{chr(10).join(f"- {improvement}" for improvement in analysis_response.improvements)}
-
-Tips:
-{chr(10).join(f"- {tip}" for tip in analysis_response.tips)}"""
+                feedback_text = (
+                    f"{get_feedback_opening_line(analysis_response.score)}"
+                    f"{analysis_response.feedback} "
+                    f"Here's what you did well: "
+                    f"{', '.join(analysis_response.strengths)}. "
+                    f"To make your answer even stronger, consider: "
+                    f"{', '.join(analysis_response.improvements)}. "
+                    f"Tips for next time: "
+                    f"{', '.join(analysis_response.tips)}."
+                )
                 
                 self.add_to_context(session_id, "assistant", feedback_text)
                 advance_to_next_question(session_id, self._current_question_index)
@@ -316,13 +315,13 @@ Tips:
                 # Check if more questions remain
                 if self._current_question_index[session_id] < len(self._session_questions[session_id]):
                     next_question = get_current_question(session_id, self._session_questions, self._current_question_index)
-                    response = f"Here's your next question:\n\n{next_question}\n\nTake your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
+                    response = f"Here's your next question: {next_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
                     self.add_to_context(session_id, "assistant", response)
                     session_state["waiting_for_answer"] = True
-                    return feedback_text + "\n\n" + response
+                    return feedback_text + " " + response
                 else:
                     session_state["waiting_for_answer"] = False
-                    return feedback_text + "\n\nThat's the end of the interview. Great job!"
+                    return feedback_text + " That's the end of the interview. Great job!"
             
             # Defensive: If not waiting for answer, prompt user
             if not session_state["waiting_for_answer"]:
