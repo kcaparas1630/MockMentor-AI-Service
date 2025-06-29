@@ -35,11 +35,13 @@ async def test_websocket():
     async with websockets.connect(uri) as websocket:
         # Send initial session setup
         await websocket.send(json.dumps({
-            "session_id": "123",
-            "user_name": "Kent Hudson Caparas",
-            "jobRole": jobRole,
-            "jobLevel": jobLevel,
-            "questionType": questionType
+            "content": {
+                "session_id": "123",
+                "user_name": "Kent Hudson Caparas",
+                "jobRole": jobRole,
+                "jobLevel": jobLevel,
+                "questionType": questionType
+            }
         }))
         
         # Get initial response
