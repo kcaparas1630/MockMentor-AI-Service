@@ -49,11 +49,34 @@ class MainConversationService:
     throughout the application lifecycle. It maintains conversation contexts and
     question sequences for multiple interview sessions.
     
+    The service provides three main methods for different use cases:
+    
+    1. initialize_session(): For setting up a new interview session
+    2. continue_conversation(): For ongoing conversations (only needs session_id and message)
+    3. conversation_with_user_response(): Legacy method that handles both initialization and continuation
+    
     Attributes:
         _instance: Class variable storing the singleton instance
         _conversation_contexts: Dictionary mapping session IDs to conversation histories
         _session_questions: Dictionary storing questions for each session
         _current_question_index: Dictionary tracking the current question index for each session
+        _session_state: Dictionary tracking session state for each session
+        
+    Example Usage:
+        # Initialize a new session
+        service = MainConversationService()
+        session = InterviewSession(
+            session_id="123",
+            user_name="John Doe",
+            jobRole="Software Engineer",
+            jobLevel="Mid-level",
+            questionType="Behavioral"
+        )
+        greeting = await service.initialize_session(session)
+        
+        # Continue conversation (only needs session_id and message)
+        response = await service.continue_conversation("123", "I'm ready to start")
+        response = await service.continue_conversation("123", "My answer to the question...")
     """
     
     _instance = None  # Class variable to store the singleton instance
@@ -134,45 +157,114 @@ class MainConversationService:
             session_id = interview_session.session_id
             context = self.get_conversation_context(session_id)
 
-            # Initialize session state if needed
-            if session_id not in self._session_state:
-                self._session_state[session_id] = {
-                    "ready": False,
-                    "current_question_index": 0,
-                    "waiting_for_answer": False,
-                }
-            session_state = self._session_state[session_id]
-            
-            # Handle first message (empty context)
+            # Handle first message (empty context) - initialize session
             if not context:
-                await fetch_and_store_questions(interview_session, self._session_questions, self._current_question_index)
-                
-                # System message with interview guidelines
-                system_message = {
-                    "role": "system",
-                    "content": get_system_prompt(interview_session)
-                }
-                self.add_to_context(interview_session.session_id, "system", system_message["content"])
+                return await self.initialize_session(interview_session)
 
-                # Return initial greeting
-                return f"Hi {interview_session.user_name}, thanks for being here today! We're going to walk through a series of questions designed to help you shine and feel confident in your responses. This mock interview will give you a chance to practice articulating your experiences clearly and concisely. I'll provide feedback after each of your answers to help you refine your approach. Are you ready for your interview?"
-
-            # Check if user is expressing readiness to start
+            # Get the last user message from context
             last_user_message = None
             for msg in reversed(context):
                 if msg["role"] == "user":
-                    last_user_message = msg["content"].strip() # remove whitespace
+                    last_user_message = msg["content"].strip()
                     break
+            
+            if last_user_message:
+                # Remove the user message from context since continue_conversation will add it
+                context.pop()
+                return await self.continue_conversation(session_id, last_user_message)
+            
+        except Exception as e:
+            logger.error(f"Error in conversation_with_user_response: {e}")
+            raise e
+
+    async def initialize_session(self, interview_session: InterviewSession) -> str:
+        """
+        Initialize a new interview session.
+        
+        This method sets up a new interview session with questions, system prompts,
+        and initial greeting. It should be called only once per session.
+        
+        Args:
+            interview_session (InterviewSession): The interview session object with all required metadata.
+            
+        Returns:
+            str: The initial greeting message for the user.
+            
+        Raises:
+            Exception: If there's an error in session initialization.
+        """
+        try:
+            session_id = interview_session.session_id
+            
+            # Check if session already exists
+            if session_id in self._session_state:
+                raise ValueError(f"Session {session_id} already exists. Use continue_conversation for ongoing sessions.")
+            
+            # Initialize session state
+            self._session_state[session_id] = {
+                "ready": False,
+                "current_question_index": 0,
+                "waiting_for_answer": False,
+                "session_metadata": {
+                    "user_name": interview_session.user_name,
+                    "jobRole": interview_session.jobRole,
+                    "jobLevel": interview_session.jobLevel,
+                    "questionType": interview_session.questionType
+                }
+            }
+            
+            # Fetch and store questions
+            await fetch_and_store_questions(interview_session, self._session_questions, self._current_question_index)
+            
+            # Add system message
+            system_message = {
+                "role": "system",
+                "content": get_system_prompt(interview_session)
+            }
+            self.add_to_context(session_id, "system", system_message["content"])
+
+            # Return initial greeting
+            return f"Hi {interview_session.user_name}, thanks for being here today! We're going to walk through a series of questions designed to help you shine and feel confident in your responses. This mock interview will give you a chance to practice articulating your experiences clearly and concisely. I'll provide feedback after each of your answers to help you refine your approach. Are you ready for your interview?"
+            
+        except Exception as e:
+            logger.error(f"Error in initialize_session: {e}")
+            raise e
+
+    async def continue_conversation(self, session_id: str, user_message: str) -> str:
+        """
+        Continue an ongoing conversation with just session_id and user message.
+        
+        This method is designed for ongoing conversations where the session is already
+        initialized and we only need to process the user's message.
+        
+        Args:
+            session_id (str): The unique identifier for the interview session.
+            user_message (str): The user's message content.
+            
+        Returns:
+            str: The response message to be sent to the user.
+            
+        Raises:
+            Exception: If there's an error in conversation processing.
+        """
+        try:
+            # Add user message to context
+            self.add_to_context(session_id, "user", user_message)
+            
+            # Get conversation context
+            context = self.get_conversation_context(session_id)
+            
+            # Ensure session state exists
+            if session_id not in self._session_state:
+                raise ValueError(f"Session {session_id} not found. Session must be initialized first.")
+            
+            session_state = self._session_state[session_id]
+            
+            # Get the last user message (which we just added)
+            last_user_message = user_message.strip()
             
             # Handle readiness
             if not session_state["ready"]:
-                ##############################################################################
-                #   1. Check if user is ready to start                                       #
-                #   2. If user is ready, set session state to ready and waiting for answer.  #
-                #   3. Get the current question.                                             #
-                #   4. Add the response to the context.                                      #
-                #   5. Return the response.                                                  #
-                ##############################################################################
                 if last_user_message and any(ready in last_user_message.lower() for ready in ["yes", "ready", "i'm ready", "let's start", "let's go"]):
                     session_state["ready"] = True
                     session_state["waiting_for_answer"] = True
@@ -185,23 +277,19 @@ class MainConversationService:
 
             # Handle answer to current question
             if session_state["waiting_for_answer"]:
-                ##################################################################################
-                #   1. Get the current question.                                                 #
-                #   2. Analyze the user's response.                                              #
-                #   3. Format the analysis response as a string.                                 #
-                #   4. Add the analysis response to the context.                                 #
-                #   5. Advance to the next question.                                             #
-                #   6. Check if more questions remain.                                           #
-                #   7. If more questions remain, set session state to waiting for answer.        #
-                #   8. If no more questions remain, set session state to not waiting for answer. #
-                #   9. Return the feedback text.                                                 #
-                ##################################################################################
+                # For ongoing conversations, we need to get session info from context
+                # This is a limitation of the current design - we need session metadata
+                # stored in the session state for ongoing conversations
+                if "session_metadata" not in session_state:
+                    raise ValueError(f"Session {session_id} metadata not found. Session must be properly initialized.")
+                
+                session_metadata = session_state["session_metadata"]
                 current_question = get_current_question(session_id, self._session_questions, self._current_question_index)
                 analysis_request = InterviewAnalysisRequest(
-                    jobRole=interview_session.jobRole,
-                    jobLevel=interview_session.jobLevel,
-                    interviewType=interview_session.questionType,
-                    questionType=interview_session.questionType,
+                    jobRole=session_metadata["jobRole"],
+                    jobLevel=session_metadata["jobLevel"],
+                    interviewType=session_metadata["questionType"],
+                    questionType=session_metadata["questionType"],
                     question=current_question,
                     answer=last_user_message
                 )
@@ -241,7 +329,7 @@ Tips:
                 return "No rush, take your time to answer the question."
             
         except Exception as e:
-            logger.error(f"Error in conversation_with_user_response: {e}")
+            logger.error(f"Error in continue_conversation: {e}")
             raise e
 
     
