@@ -64,6 +64,7 @@ async def handle_websocket_connection(websocket: WebSocket):
     try:
         # Wait for initial connection message with session details
         initial_message: dict = await websocket.receive_json()
+        logger.info(initial_message)
         session = InterviewSession(**initial_message['content'])
         service = MainConversationService()
         # Send initial greeting
@@ -104,7 +105,7 @@ async def handle_websocket_connection(websocket: WebSocket):
                 except WebSocketDisconnect:
                     logger.info("WebSocket connection closed while sending error")
                     break
-    except WebSocketDisconnect:
+    except WebSocketDisconnect as e:
         logger.info("WebSocket connection closed during initial setup")
     except Exception as e:
         logger.error(f"Error in websocket connection: {e}")
