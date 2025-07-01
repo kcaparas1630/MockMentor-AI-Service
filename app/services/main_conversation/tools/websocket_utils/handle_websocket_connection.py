@@ -106,7 +106,6 @@ async def handle_websocket_connection(websocket: WebSocket):
                     logger.info("WebSocket connection closed while sending error")
                     break
     except WebSocketDisconnect as e:
-        logger.error(f"Error in websocket connection: {e}")
         logger.info("WebSocket connection closed during initial setup")
     except Exception as e:
         logger.error(f"Error in websocket connection: {e}")
