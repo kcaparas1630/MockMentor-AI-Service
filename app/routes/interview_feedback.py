@@ -27,6 +27,7 @@ from app.schemas.session_evaluation_schemas.interview_analysis_request import In
 from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
 from app.services.speech_to_text.text_answers_service import TextAnswersService
 from loguru import logger
+from app.errors.exceptions import InternalServerError
 
 router = APIRouter(
     prefix="/api",
@@ -48,5 +49,5 @@ async def get_interview_feedback(request: InterviewAnalysisRequest):
         return feedback
     except Exception as e:
         logger.error(f"Error getting interview feedback: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise InternalServerError("Failed to analyze interview feedback.") from e
         
