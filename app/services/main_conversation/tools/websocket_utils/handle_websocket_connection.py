@@ -17,6 +17,7 @@ Dependencies:
 - app.schemas.main.user_message: For user message data models.
 - app.services.main_conversation.main_conversation_service: For conversation management.
 - app.services.main_conversation.tools.websocket_utils.handle_user_message: For processing individual user messages.
+- app.services.transcription.transcriber: For transcribing audio.
 
 Author: @kcaparas1630
 """
@@ -28,6 +29,7 @@ from app.schemas.main.interview_session import InterviewSession
 from app.schemas.main.user_message import UserMessage
 from app.services.main_conversation.main_conversation_service import MainConversationService
 from app.services.main_conversation.tools.websocket_utils.handle_user_message import handle_user_message
+from app.services.transcription.transcriber import TranscriberService
 
 async def handle_websocket_connection(websocket: WebSocket):
     """
@@ -64,6 +66,7 @@ async def handle_websocket_connection(websocket: WebSocket):
     try:
         # Wait for initial connection message with session details
         initial_message: dict = await websocket.receive_json()
+        logger.info(initial_message)
         session = InterviewSession(**initial_message['content'])
         service = MainConversationService()
         # Send initial greeting
@@ -73,20 +76,48 @@ async def handle_websocket_connection(websocket: WebSocket):
             content=response
         ).model_dump())
 
+        transcriber = TranscriberService()
+
         # Handle ongoing conversation
         while True:
             try:
-                # Process incoming messages
                 raw_message: dict = await websocket.receive_json()
+
+                if raw_message.get("type") == "audio":
+                    base64_data = raw_message.get("data")
+                    if not base64_data:
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Missing 'data' field for audio"
+                        })
+                        continue
+                    try: 
+                        transcript = transcriber.transcribe_base64_audio(base64_data)
+                    except Exception as e:
+                        logger.error(f"Error transcribing audio: {e}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Error transcribing audio"
+                        })
+                        continue
+                    user_message = UserMessage(
+                        session_id=session.session_id,
+                        message=transcript
+                    )
+                    response = await handle_user_message(user_message)
+                    await websocket.send_json(WebSocketMessage(
+                        type="message",
+                        content=response
+                    ).model_dump())
+                    continue
+
+                # Otherwise, treat as a normal user message (text)
                 user_ws_message: WebSocketUserMessage = WebSocketUserMessage.model_validate(raw_message)
-                
                 user_message: UserMessage = UserMessage(
                     session_id=session.session_id,
                     message=user_ws_message.content
                 )
                 response: str = await handle_user_message(user_message)
-                
-                # Send response back to client
                 await websocket.send_json(WebSocketMessage(
                     type="message",
                     content=response
@@ -104,7 +135,7 @@ async def handle_websocket_connection(websocket: WebSocket):
                 except WebSocketDisconnect:
                     logger.info("WebSocket connection closed while sending error")
                     break
-    except WebSocketDisconnect:
+    except WebSocketDisconnect as e:
         logger.info("WebSocket connection closed during initial setup")
     except Exception as e:
         logger.error(f"Error in websocket connection: {e}")
