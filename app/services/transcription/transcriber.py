@@ -15,6 +15,7 @@ import tempfile
 import base64
 from loguru import logger
 import os
+import time
 
 _model = None
 
@@ -33,32 +34,32 @@ class TranscriberService:
         """
         global _model
         if _model is None:
-            _model = WhisperModel("base", device="cpu", compute_type="int8")
+            _model = WhisperModel("tiny", device="cpu", compute_type="int8")
         return _model
 
     def transcribe_base64_audio(self, base64_data: str) -> str:
-        """
-        Transcribes audio data encoded in base64 format to text.
-        Args:
-            base64_data (str): Base64 encoded audio data.
-        Returns:
-        str: Transcribed text from the audio data.
-    """
-        model = self.get_model()
-        # Decode to audio
+        start_time = time.time()
+        
+        # Decode timing
+        decode_start = time.time()
         audio_bytes = base64.b64decode(base64_data)
-
-        # Save to file
+        logger.info(f"Decode time: {time.time() - decode_start:.2f}s")
+        
+        # File I/O timing
+        io_start = time.time()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
             temp_audio.write(audio_bytes)
             temp_path = temp_audio.name
+        logger.info(f"File I/O time: {time.time() - io_start:.2f}s")
+        
         try:
-            # Transcribe using faster-whisper
-            segments, _ = model.transcribe(temp_path)
-            return " ".join([seg.text for seg in segments])
+            # Transcription timing
+            transcribe_start = time.time()
+            segments, _ = self.model.transcribe(temp_path)
+            transcribe_text = " ".join([seg.text for seg in segments])
+            logger.info(f"Transcription time: {time.time() - transcribe_start:.2f}s")
+            
+            logger.info(f"Total time: {time.time() - start_time:.2f}s")
+            return transcribe_text
         finally:
-            # Clean up temporary file
-            try:
-                os.unlink(temp_path)
-            except OSError as e:
-                logger.error(f"Error removing temporary file {temp_path}: {e}")
+            os.unlink(temp_path)
