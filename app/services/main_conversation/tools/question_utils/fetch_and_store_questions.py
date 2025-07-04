@@ -12,6 +12,7 @@ Dependencies:
 - app.schemas.main.interview_session: For interview session data models.
 - app.services.main_conversation.tools.question_utils.get_questions: For database question retrieval.
 - loguru: For logging operations.
+- app.errors.exceptions: For custom exception handling.
 
 Author: @kcaparas1630
 """
@@ -19,6 +20,7 @@ Author: @kcaparas1630
 from app.schemas.main.interview_session import InterviewSession
 from app.services.main_conversation.tools.question_utils.get_questions import get_questions
 from loguru import logger
+from app.errors.exceptions import BadRequest, InternalServerError
 
 async def fetch_and_store_questions(interview_session: InterviewSession, _session_questions: dict, _current_question_index: dict) -> list:
     """
@@ -39,8 +41,9 @@ async def fetch_and_store_questions(interview_session: InterviewSession, _sessio
         List[str]: The list of questions fetched and stored for the session.
         
     Raises:
-        Exception: If questions cannot be fetched from the database or if no questions
+        BadRequest: If questions cannot be fetched from the database or if no questions
             are found for the specified criteria.
+        InternalServerError: If an unexpected error occurs while fetching questions.
             
     Example:
         >>> session = InterviewSession(session_id="123", jobRole="Software Engineer", 
@@ -59,10 +62,10 @@ async def fetch_and_store_questions(interview_session: InterviewSession, _sessio
         )
         
         if not questions_result["success"]:
-            raise Exception(f"Failed to fetch questions: {questions_result['error']}")
+            raise BadRequest(f"Failed to fetch questions: {questions_result['error']}")
         
         if questions_result["count"] == 0:
-            raise Exception(f"No questions found for {interview_session.jobRole} {interview_session.jobLevel} {interview_session.questionType}")
+            raise BadRequest(f"No questions found for {interview_session.jobRole} {interview_session.jobLevel} {interview_session.questionType}")
         
         # Store questions and initialize index
         _session_questions[interview_session.session_id] = questions_result['questions']
@@ -72,6 +75,8 @@ async def fetch_and_store_questions(interview_session: InterviewSession, _sessio
         
         return questions_result['questions']
         
+    except BadRequest:
+        raise
     except Exception as e:
         logger.error(f"Error fetching questions: {e}")
-        raise e
+        raise InternalServerError("An unexpected error occurred while fetching questions.")

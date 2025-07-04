@@ -14,6 +14,14 @@ from app.core.cors_middleware import add_cors_middleware
 
 from loguru import logger
 
+# Error Handling
+from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
+from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY, HTTP_500_INTERNAL_SERVER_ERROR
+
+from app.errors.handlers import http_exception_handler, generic_exception_handler
+
 # Load environment variables
 load_dotenv()
 
@@ -25,6 +33,17 @@ app = FastAPI(
 )
 # Add CORS middleware
 add_cors_middleware(app)    
+
+# Centralized error handlers
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(Exception, generic_exception_handler)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
 
 # Add rate limiter to the app
 try:

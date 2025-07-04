@@ -15,12 +15,14 @@ Dependencies:
 - fastapi: For creating the FastAPI application and handling WebSocket connections.
 - app.services.main_conversation.tools.websocket_utils.handle_websocket_connection: For processing conversation logic.
 - loguru: For logging information about the WebSocket connection and any exceptions that occur.
+- app.errors.exceptions import InternalServerError: For raising InternalServerError for unexpected errors.
 Author: @kcaparas1630
 
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from app.services.main_conversation.tools.websocket_utils.handle_websocket_connection import handle_websocket_connection
 from loguru import logger
+from app.errors.exceptions import InternalServerError
 
 router = APIRouter(
     prefix="/api",
@@ -37,8 +39,10 @@ async def websocket_endpoint(websocket: WebSocket):
         await handle_websocket_connection(websocket)
     except WebSocketDisconnect:
         logger.info("WebSocket connection closed")
+    except InternalServerError:
+        raise
     except Exception as e:
         logger.exception("Unhandled exception in websocket connection")
         #1011 = internal error
         await websocket.close(code=1011, reason=str(e)[:123])
-        raise # re-raise the exception to be handled by the FastAPI error handler
+        raise InternalServerError("An unexpected error occurred in the websocket endpoint.")

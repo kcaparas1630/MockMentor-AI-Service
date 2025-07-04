@@ -10,11 +10,13 @@ question index, or a completion message if all questions have been answered.
 
 Dependencies:
 - typing: For type annotations.
+- app.errors.exceptions: For the NotFound exception.
 
 Author: @kcaparas1630
 """
 
 from typing import Dict, List
+from app.errors.exceptions import NotFound
 
 def get_current_question(session_id: str, _session_questions: Dict[str, List[str]], _current_question_index: Dict[str, int]) -> str:
     """
@@ -32,7 +34,7 @@ def get_current_question(session_id: str, _session_questions: Dict[str, List[str
         str: The current question for the session, or a completion message if all questions are done.
         
     Raises:
-        Exception: If no questions are found for the specified session.
+        NotFound: If no questions are found for the specified session.
         
     Example:
         >>> _session_questions = {"session_123": ["Question 1", "Question 2"]}
@@ -41,7 +43,7 @@ def get_current_question(session_id: str, _session_questions: Dict[str, List[str
         "Question 1"
     """
     if session_id not in _session_questions:
-        raise Exception("No questions found for session")
+        raise NotFound("No questions found for session")
     
     questions = _session_questions[session_id]
     current_index = _current_question_index.get(session_id, 0)

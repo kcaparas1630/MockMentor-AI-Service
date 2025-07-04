@@ -13,6 +13,7 @@ Dependencies:
 - app.schemas.main.user_message: For user message data models.
 - app.services.main_conversation.main_conversation_service: For conversation management.
 - loguru: For logging operations.
+- app.errors.exceptions import InternalServerError
 
 Author: @kcaparas1630
 """
@@ -20,6 +21,7 @@ Author: @kcaparas1630
 from app.schemas.main.user_message import UserMessage
 from app.services.main_conversation.main_conversation_service import MainConversationService
 from loguru import logger
+from app.errors.exceptions import InternalServerError
 
 async def handle_user_message(user_message: UserMessage):
     """
@@ -47,6 +49,8 @@ async def handle_user_message(user_message: UserMessage):
         service = MainConversationService()
         return await service.continue_conversation(user_message.session_id, user_message.message)
         
+    except InternalServerError:
+        raise
     except Exception as e:
         logger.error(f"Error in handle_user_message: {e}")
-        raise e
+        raise InternalServerError("An unexpected error occurred while handling the user message.")
