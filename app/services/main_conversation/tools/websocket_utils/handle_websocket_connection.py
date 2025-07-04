@@ -91,7 +91,15 @@ async def handle_websocket_connection(websocket: WebSocket):
                             "message": "Missing 'data' field for audio"
                         })
                         continue
-                    transcript = transcriber.transcribe_base64_audio(base64_data)
+                    try: 
+                        transcript = transcriber.transcribe_base64_audio(base64_data)
+                    except Exception as e:
+                        logger.error(f"Error transcribing audio: {e}")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Error transcribing audio"
+                        })
+                        continue
                     user_message = UserMessage(
                         session_id=session.session_id,
                         message=transcript

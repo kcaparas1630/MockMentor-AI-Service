@@ -14,6 +14,7 @@ from faster_whisper import WhisperModel
 import tempfile
 import base64
 from loguru import logger
+import os
 
 _model = None
 
@@ -51,7 +52,13 @@ class TranscriberService:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
             temp_audio.write(audio_bytes)
             temp_path = temp_audio.name
-            
-        # Transcribe using faster-whisper
-        segments, _ = model.transcribe(temp_path)
-        return " ".join([seg.text for seg in segments])
+        try:
+            # Transcribe using faster-whisper
+            segments, _ = model.transcribe(temp_path)
+            return " ".join([seg.text for seg in segments])
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(temp_path)
+            except OSError as e:
+                logger.error(f"Error removing temporary file {temp_path}: {e}")
