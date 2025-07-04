@@ -15,7 +15,6 @@ Dependencies:
 - fastapi: For creating the FastAPI application and handling WebSocket connections.
 - app.services.main_conversation.tools.websocket_utils.handle_websocket_connection: For processing conversation logic.
 - loguru: For logging information about the WebSocket connection and any exceptions that occur.
-
 Author: @kcaparas1630
 
 """
@@ -33,6 +32,8 @@ router = APIRouter(
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     try:
+        # Wait for initial connection message with session details
+        # The handler will receive the initial message itself
         await handle_websocket_connection(websocket)
     except WebSocketDisconnect:
         logger.info("WebSocket connection closed")

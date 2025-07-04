@@ -161,18 +161,8 @@ class MainConversationService:
             # Handle first message (empty context) - initialize session
             if not context:
                 return await self.initialize_session(interview_session)
-
-            # Get the last user message from context
-            last_user_message = None
-            for msg in reversed(context):
-                if msg["role"] == "user":
-                    last_user_message = msg["content"].strip()
-                    break
             
-            if last_user_message:
-                # Remove the user message from context since continue_conversation will add it
-                context.pop()
-                return await self.continue_conversation(session_id, last_user_message)
+            return None
             
         except Exception as e:
             logger.error(f"Error in conversation_with_user_response: {e}")
