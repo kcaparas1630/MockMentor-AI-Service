@@ -18,6 +18,7 @@ Dependencies:
 - app.services.main_conversation.main_conversation_service: For conversation management.
 - app.services.main_conversation.tools.websocket_utils.handle_user_message: For processing individual user messages.
 - app.services.transcription.transcriber: For transcribing audio.
+- app.errors.exceptions: For InternalServerError handling.
 
 Author: @kcaparas1630
 """
@@ -30,6 +31,7 @@ from app.schemas.main.user_message import UserMessage
 from app.services.main_conversation.main_conversation_service import MainConversationService
 from app.services.main_conversation.tools.websocket_utils.handle_user_message import handle_user_message
 from app.services.transcription.transcriber import TranscriberService
+from app.errors.exceptions import InternalServerError
 
 async def handle_websocket_connection(websocket: WebSocket):
     """
@@ -54,7 +56,7 @@ async def handle_websocket_connection(websocket: WebSocket):
         
     Raises:
         WebSocketDisconnect: When the client disconnects from the WebSocket.
-        Exception: For any other errors during message processing or response generation.
+        InternalServerError: For any other errors during message processing or response generation.
         
     Example:
         This function is typically called by a WebSocket endpoint:
@@ -125,8 +127,8 @@ async def handle_websocket_connection(websocket: WebSocket):
             except WebSocketDisconnect:
                 logger.info("WebSocket connection closed by client")
                 break
-            except Exception as e:
-                logger.error(f"Error in websocket message handling: {e}")
+            except InternalServerError as e:
+                logger.error(f"Internal server error in websocket message handling: {e}")
                 try:
                     await websocket.send_json(WebSocketMessage(
                         type="error",
@@ -135,14 +137,26 @@ async def handle_websocket_connection(websocket: WebSocket):
                 except WebSocketDisconnect:
                     logger.info("WebSocket connection closed while sending error")
                     break
+            except Exception as e:
+                logger.error(f"Error in websocket message handling: {e}")
+                try:
+                    await websocket.send_json(WebSocketMessage(
+                        type="error",
+                        content="An unexpected error occurred in websocket message handling."
+                    ).model_dump())
+                except WebSocketDisconnect:
+                    logger.info("WebSocket connection closed while sending error")
+                    break
     except WebSocketDisconnect as e:
         logger.info("WebSocket connection closed during initial setup")
+    except InternalServerError:
+        raise
     except Exception as e:
         logger.error(f"Error in websocket connection: {e}")
         try:
             await websocket.send_json(WebSocketMessage(
                 type="error",
-                content=str(e)
+                content="An unexpected error occurred in websocket connection."
             ).model_dump())
         except WebSocketDisconnect:
             logger.info("WebSocket connection closed while sending error")

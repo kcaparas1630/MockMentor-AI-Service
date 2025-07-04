@@ -25,6 +25,7 @@ Dependencies:
 - app.schemas.websocket.websocket_user_message: For defining WebSocket user message schema.
 - app.schemas.main.interview_session: For defining the interview session schema.
 - app.schemas.main.user_message: For defining user message schema.
+- app.errors.exceptions: For handling exceptions.
 
 Author: @kcaparas1630
 """
@@ -41,6 +42,7 @@ from app.services.main_conversation.tools.question_utils.get_current_question im
 from app.services.main_conversation.tools.question_utils.advance_to_next_question import advance_to_next_question
 from app.services.main_conversation.tools.context_utils.get_system_prompt import get_system_prompt
 from app.services.main_conversation.tools.context_utils.get_feedback_opening_line import get_feedback_opening_line
+from app.errors.exceptions import BadRequest, NotFound, InternalServerError
 
 class MainConversationService:
     """
@@ -164,9 +166,13 @@ class MainConversationService:
             
             return None
             
+        except BadRequest:
+            raise
+        except NotFound:
+            raise
         except Exception as e:
             logger.error(f"Error in conversation_with_user_response: {e}")
-            raise e
+            raise InternalServerError("An unexpected error occurred during conversation setup.")
 
     async def initialize_session(self, interview_session: InterviewSession) -> str:
         """
@@ -189,7 +195,7 @@ class MainConversationService:
             
             # Check if session already exists
             if session_id in self._session_state:
-                raise ValueError(f"Session {session_id} already exists. Use continue_conversation for ongoing sessions.")
+                raise BadRequest(f"Session {session_id} already exists. Use continue_conversation for ongoing sessions.")
             
             # Initialize session state
             self._session_state[session_id] = {
@@ -217,9 +223,11 @@ class MainConversationService:
             # Return initial greeting
             return f"Hi {interview_session.user_name}, thanks for being here today! We're going to walk through a series of questions designed to help you shine and feel confident in your responses. This mock interview will give you a chance to practice articulating your experiences clearly and concisely. I'll provide feedback after each of your answers to help you refine your approach. Are you ready for your interview?"
             
+        except BadRequest:
+            raise
         except Exception as e:
             logger.error(f"Error in initialize_session: {e}")
-            raise e
+            raise InternalServerError("An unexpected error occurred during session initialization.")
 
     async def continue_conversation(self, session_id: str, user_message: str) -> str:
         """
@@ -247,7 +255,7 @@ class MainConversationService:
             
             # Ensure session state exists
             if session_id not in self._session_state:
-                raise ValueError(f"Session {session_id} not found. Session must be initialized first.")
+                raise NotFound(f"Session {session_id} not found. Session must be initialized first.")
             
             session_state = self._session_state[session_id]
             
@@ -272,7 +280,7 @@ class MainConversationService:
                 # This is a limitation of the current design - we need session metadata
                 # stored in the session state for ongoing conversations
                 if "session_metadata" not in session_state:
-                    raise ValueError(f"Session {session_id} metadata not found. Session must be properly initialized.")
+                    raise BadRequest(f"Session {session_id} metadata not found. Session must be properly initialized.")
                 
                 session_metadata = session_state["session_metadata"]
                 current_question = get_current_question(session_id, self._session_questions, self._current_question_index)
@@ -317,8 +325,12 @@ class MainConversationService:
             if not session_state["waiting_for_answer"]:
                 return "No rush, take your time to answer the question."
             
+        except BadRequest:
+            raise
+        except NotFound:
+            raise
         except Exception as e:
             logger.error(f"Error in continue_conversation: {e}")
-            raise e
+            raise InternalServerError("An unexpected error occurred during conversation continuation.")
 
     
