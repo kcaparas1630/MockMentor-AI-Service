@@ -85,6 +85,14 @@ async def handle_websocket_connection(websocket: WebSocket):
             try:
                 raw_message: dict = await websocket.receive_json()
 
+                 # Handle heartbeat/ping messages
+                if raw_message.get("type") == "ping" or raw_message.get("type") == "heartbeat":
+                    await websocket.send_json({
+                        "type": "pong",
+                        "timestamp": raw_message.get("timestamp")  # Echo back timestamp if provided
+                    })
+                    continue
+
                 if raw_message.get("type") == "audio":
                     base64_data = raw_message.get("data")
                     if not base64_data:
