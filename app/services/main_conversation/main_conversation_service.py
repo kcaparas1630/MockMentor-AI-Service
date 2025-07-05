@@ -299,12 +299,9 @@ class MainConversationService:
                 feedback_text = (
                     f"{get_feedback_opening_line(analysis_response.score)}"
                     f"{analysis_response.feedback} "
-                    f"Here's what you did well: "
-                    f"{', '.join(analysis_response.strengths)}. "
-                    f"To make your answer even stronger, consider: "
-                    f"{', '.join(analysis_response.improvements)}. "
-                    f"Tips for next time: "
-                    f"{', '.join(analysis_response.tips)}."
+                    f"Here's what you did well: {analysis_response.strengths} "
+                    f"To make your answer even stronger, consider: {analysis_response.improvements} "
+                    f"Tips for next time: {analysis_response.tips}"
                 )
                 
                 self.add_to_context(session_id, "assistant", feedback_text)
