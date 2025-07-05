@@ -21,7 +21,7 @@ Author: @kcaparas1630
 
 from openai import AsyncOpenAI
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, NextAction
 from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
 from app.helper.extract_regex_feedback import extract_regex_feedback
 import logging
@@ -104,7 +104,7 @@ Accommodating of technical difficulties and incomplete responses
 
 OUTPUT FORMAT:
 You must return a valid JSON object with exactly this structure:
-{
+{{
 "score": 7,
 "feedback": "Brief summary (2-3 sentences)",
 "strengths": ["Strength 1", "Strength 2", "Strength 3"],
@@ -113,15 +113,15 @@ You must return a valid JSON object with exactly this structure:
 "engagement_check": false,
 "technical_issue_detected": false,
 "needs_retry": false,
-"next_action": {
+"next_action": {{
     "type": "continue" | "retry_question" | "ask_follow_up" | "suggest_exit",
     "message": "Your message to the user for the next turn",
-    "follow_up_question_details": {  
+    "follow_up_question_details": {{  
         "original_question": "Original question text",
         "specific_gap_identified": "Specific gap to address for the follow-up"
-    }
-}
-}
+    }}
+}}
+}}
 IMPORTANT: Your entire response must be valid JSON only. Do not include any text before or after the JSON. Do not use markdown formatting. The score must be an integer between 1 and 10.
 
 TECHNICAL ISSUE DETECTION:
@@ -286,13 +286,28 @@ User Response: {analysis_request.answer}"""
             import json
             feedback_data = json.loads(content)
             
+            # After feedback_data = json.loads(content)
+            next_action_data = feedback_data.get("next_action")
+            if not next_action_data:
+                next_action = NextAction(
+                    type="retry_question",
+                    message="There was a technical error analyzing your response. Please try answering the question again.",
+                    follow_up_question_details=None
+                )
+            else:
+                next_action = NextAction(**next_action_data)  # Convert dict to NextAction
+
             # Create the response object
             feedback_response = InterviewFeedbackResponse(
                 score=feedback_data.get("score", 0),
                 feedback=feedback_data.get("feedback", ""),
                 strengths=feedback_data.get("strengths", []),
                 improvements=feedback_data.get("improvements", []),
-                tips=feedback_data.get("tips", [])
+                tips=feedback_data.get("tips", []),
+                engagement_check=feedback_data.get("engagement_check", False),
+                technical_issue_detected=feedback_data.get("technical_issue_detected", False),
+                needs_retry=feedback_data.get("needs_retry", False),
+                next_action=next_action
             )
             
             return feedback_response
@@ -313,5 +328,13 @@ User Response: {analysis_request.answer}"""
             feedback="Unable to analyze the response due to a technical error.",
             strengths=["N/A"],
             improvements=["N/A"],
-            tips=["Please try again later."]
+            tips=["Please try again later."],
+            engagement_check=False,
+            technical_issue_detected=True,
+            needs_retry=True,
+            next_action=NextAction(
+                type="retry_question",
+                message="There was a technical error analyzing your response. Please try answering the question again.",
+                follow_up_question_details=None
+            )
         ) 
