@@ -50,6 +50,7 @@ class TranscriberService:
                 condition_on_previous_text=False
             )
             transcribe_text = " ".join([seg.text for seg in segments])
+            logger.info(f"Transcribed text: {transcribe_text}")
             return transcribe_text
         finally:
             try:
