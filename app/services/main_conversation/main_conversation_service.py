@@ -202,6 +202,8 @@ class MainConversationService:
                 "ready": False,
                 "current_question_index": 0,
                 "waiting_for_answer": False,
+                "retry_attempts": 0,  # Track retry attempts for current question
+                "follow_up_attempts": 0,  # Track follow-up attempts for current question
                 "session_metadata": {
                     "user_name": interview_session.user_name,
                     "jobRole": interview_session.jobRole,
@@ -293,40 +295,78 @@ class MainConversationService:
                 analysis_response = await text_answers_service.analyze_response(analysis_request)
 
                 # Format the analysis response as a string
+                # Convert lists to readable text format
+                strengths_text = ", ".join(analysis_response.strengths) if analysis_response.strengths else "No specific strengths identified"
+                improvements_text = ", ".join(analysis_response.improvements) if analysis_response.improvements else "No specific improvements needed"
+                tips_text = ", ".join(analysis_response.tips) if analysis_response.tips else "No specific tips provided"
+                
                 feedback_text = (
                     f"{get_feedback_opening_line(analysis_response.score)}"
                     f"{analysis_response.feedback} "
-                    f"Here's what you did well: {analysis_response.strengths} "
-                    f"To make your answer even stronger, consider: {analysis_response.improvements} "
-                    f"Tips for next time: {analysis_response.tips}"
+                    f"Here's what you did well: {strengths_text}. "
+                    f"To make your answer even stronger, consider: {improvements_text}. "
+                    f"Tips for next time: {tips_text}."
                 )
 
                 # Always add feedback to context
                 self.add_to_context(session_id, "assistant", feedback_text)
 
-                # Handle technical issues or retry
-                if analysis_response.technical_issue_detected or analysis_response.needs_retry:
-                    # Do not advance question, prompt retry
+                # Handle technical issues or retry (limit to 1 retry per question)
+                if (analysis_response.technical_issue_detected or analysis_response.needs_retry) and session_state["retry_attempts"] < 1:
+                    session_state["retry_attempts"] += 1
                     retry_message = analysis_response.next_action.message
                     self.add_to_context(session_id, "assistant", retry_message)
-                    return feedback_text + "\n" + retry_message
+                    return feedback_text + retry_message
+                elif (analysis_response.technical_issue_detected or analysis_response.needs_retry) and session_state["retry_attempts"] >= 1:
+                    # Max retries reached, move to next question
+                    advance_to_next_question(session_id, self._current_question_index)
+                    if self._current_question_index[session_id] < len(self._session_questions[session_id]):
+                        next_question = get_current_question(session_id, self._session_questions, self._current_question_index)
+                        next_message = f"Let's move on to the next question: {next_question} Take your time, and remember to be specific about your role and the impact you made."
+                        self.add_to_context(session_id, "assistant", next_message)
+                        session_state["waiting_for_answer"] = True
+                        session_state["retry_attempts"] = 0  # Reset for new question
+                        session_state["follow_up_attempts"] = 0  # Reset for new question
+                        return feedback_text + "Due to technical difficulties, let's move on to the next question. " + next_message
+                    else:
+                        session_state["waiting_for_answer"] = False
+                        end_message = "That's the end of the interview. Great job!"
+                        self.add_to_context(session_id, "assistant", end_message)
+                        return feedback_text + "Due to technical difficulties, let's conclude the interview. " + end_message
 
-                # Handle engagement check and follow-up
-                if analysis_response.engagement_check and analysis_response.next_action.type == "ask_follow_up":
+                # Handle engagement check and follow-up (limit to 1 follow-up per question)
+                if analysis_response.engagement_check and analysis_response.next_action.type == "ask_follow_up" and session_state["follow_up_attempts"] < 1:
+                    session_state["follow_up_attempts"] += 1
                     follow_up_message = analysis_response.next_action.message
                     # Optionally include follow-up details if present
                     if analysis_response.next_action.follow_up_question_details:
                         details = analysis_response.next_action.follow_up_question_details
-                        follow_up_message += f"\nFollow-up: {details.original_question} (Gap: {details.specific_gap_identified})"
+                        follow_up_message += f" Follow-up: {details.original_question} (Gap: {details.specific_gap_identified})"
                     self.add_to_context(session_id, "assistant", follow_up_message)
-                    return feedback_text + "\n" + follow_up_message
+                    return feedback_text + follow_up_message
+                elif analysis_response.engagement_check and analysis_response.next_action.type == "ask_follow_up" and session_state["follow_up_attempts"] >= 1:
+                    # Max follow-ups reached, move to next question
+                    advance_to_next_question(session_id, self._current_question_index)
+                    if self._current_question_index[session_id] < len(self._session_questions[session_id]):
+                        next_question = get_current_question(session_id, self._session_questions, self._current_question_index)
+                        next_message = f"Let's move on to the next question: {next_question} Take your time, and remember to be specific about your role and the impact you made."
+                        self.add_to_context(session_id, "assistant", next_message)
+                        session_state["waiting_for_answer"] = True
+                        session_state["retry_attempts"] = 0  # Reset for new question
+                        session_state["follow_up_attempts"] = 0  # Reset for new question
+                        return feedback_text + "Let's move on to the next question. " + next_message
+                    else:
+                        session_state["waiting_for_answer"] = False
+                        end_message = "That's the end of the interview. Great job!"
+                        self.add_to_context(session_id, "assistant", end_message)
+                        return feedback_text + "Let's conclude the interview. " + end_message
 
                 # Handle suggest_exit
                 if analysis_response.next_action.type == "suggest_exit":
                     exit_message = analysis_response.next_action.message
                     self.add_to_context(session_id, "assistant", exit_message)
                     session_state["waiting_for_answer"] = False
-                    return feedback_text + "\n" + exit_message
+                    return feedback_text + exit_message
 
                 # Handle continue (advance to next question)
                 if analysis_response.next_action.type == "continue":
@@ -337,12 +377,14 @@ class MainConversationService:
                         next_message = f"Here's your next question: {next_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
                         self.add_to_context(session_id, "assistant", next_message)
                         session_state["waiting_for_answer"] = True
-                        return feedback_text + "\n" + analysis_response.next_action.message + "\n" + next_message
+                        session_state["retry_attempts"] = 0  # Reset for new question
+                        session_state["follow_up_attempts"] = 0  # Reset for new question
+                        return feedback_text + analysis_response.next_action.message + next_message
                     else:
                         session_state["waiting_for_answer"] = False
-                        end_message = analysis_response.next_action.message + "\nThat's the end of the interview. Great job!"
+                        end_message = analysis_response.next_action.message + "That's the end of the interview. Great job!"
                         self.add_to_context(session_id, "assistant", end_message)
-                        return feedback_text + "\n" + end_message
+                        return feedback_text + end_message
 
                 # Defensive: If not waiting for answer, prompt user
                 if not session_state["waiting_for_answer"]:
