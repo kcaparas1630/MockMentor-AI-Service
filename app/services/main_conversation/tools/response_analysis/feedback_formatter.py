@@ -30,7 +30,7 @@ def format_feedback_response(analysis_response) -> str:
         >>> print(response)  # "Great job! Your answer was comprehensive..."
     """
     strengths_text = "Here's what you did well: " + ", ".join(analysis_response.strengths) if analysis_response.strengths else ""
-    improvements_text = "To make your answer even stronger, consider: " + ", ".join(analysis_response.improvements) if analysis_response.improvements else ""
+    improvements_text = "Areas for improvement: " + ", ".join(analysis_response.improvements) if analysis_response.improvements else ""
     tips_text = "Tips for next time: " + ", ".join(analysis_response.tips) if analysis_response.tips else ""
 
     return (
