@@ -12,7 +12,7 @@ Author: @kcaparas1630
 """
 
 from typing import Dict, List
-
+from loguru import logger
 
 async def handle_retry_action(
     session_id: str,
@@ -31,6 +31,7 @@ async def handle_retry_action(
         session_state["retry_attempts"] += 1
         retry_message = analysis_response.next_action.message
         add_to_context_func(session_id, "assistant", retry_message)
+        logger.info(f"Feedback and retry message: {feedback_text + retry_message}")
         return feedback_text + retry_message
     else:
         # Max retries reached, move to next question
@@ -67,9 +68,10 @@ async def handle_follow_up_action(
         # Optionally include follow-up details if present
         if analysis_response.next_action.follow_up_question_details:
             details = analysis_response.next_action.follow_up_question_details
-            follow_up_message += f" Follow-up: {details.original_question} (Gap: {details.specific_gap_identified})"
+            follow_up_message += f" {details.original_question}"
         
         add_to_context_func(session_id, "assistant", follow_up_message)
+        logger.info(f"Feedback and follow-up message: {feedback_text + follow_up_message}")
         return feedback_text + follow_up_message
     else:
         # Max follow-ups reached, move to next question
@@ -97,7 +99,9 @@ async def handle_exit_action(
     exit_message = analysis_response.next_action.message
     add_to_context_func(session_id, "assistant", exit_message)
     session_state["waiting_for_answer"] = False
-    return feedback_text + exit_message
+    logger.info(f"Feedback and exit message: {feedback_text + exit_message}")
+    # Return a special marker to indicate session should end
+    return "SESSION_END:" + feedback_text + exit_message
 
 
 async def handle_continue_action(
@@ -127,6 +131,7 @@ async def handle_continue_action(
         session_state["waiting_for_answer"] = False
         end_message = analysis_response.next_action.message + "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
+        logger.info(f"Feedback and end message: {feedback_text + end_message}")
         return feedback_text + end_message
 
 
@@ -150,11 +155,13 @@ async def advance_to_next_question_with_message(
         add_to_context_func(session_id, "assistant", next_message)
         session_state["waiting_for_answer"] = True
         reset_question_attempts_func(session_state)
+        logger.info(f"Feedback and next question message: {prefix_message + next_message}")
         return prefix_message + next_message
     else:
         session_state["waiting_for_answer"] = False
         end_message = "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
+        logger.info(f"Feedback and end message: {prefix_message + end_message}")
         return prefix_message + end_message
 
 
