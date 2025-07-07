@@ -30,7 +30,7 @@ class TranscriberService:
         """
         global _model
         if _model is None:
-            _model = WhisperModel("tiny", device="cpu", compute_type="int8")
+            _model = WhisperModel("small.en", device="cpu", compute_type="int8")
         return _model
     
     def transcribe_base64_audio(self, base64_data: str) -> str:
@@ -42,7 +42,7 @@ class TranscriberService:
         try:
             segments, _ = self.model.transcribe(
                 temp_path,
-                beam_size=1,
+                beam_size=7 ,
                 best_of=1,
                 temperature=0,
                 vad_filter=True,
