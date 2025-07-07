@@ -30,3 +30,10 @@ class InterviewFeedbackResponse(BaseModel):
     technical_issue_detected: bool = Field(False, description="True if a technical issue was detected")
     needs_retry: bool = Field(False, description="True if the user needs to retry the question")
     next_action: NextAction = Field(..., description="Defines the AI's next conversational action")
+
+class InterviewFeedbackFormatterResponse(BaseModel):
+    score: int = Field(ge=0, le=10, description="Interview score between 0 and 10")
+    feedback: str = Field(default="", description="Feedback on the interview")
+    strengths: List[str] = Field(default=[], description="Strengths of the candidate")
+    improvements: List[str] = Field(default=[], description="Areas for improvement")
+    tips: List[str] = Field(default=[], description="Tips for the candidate")

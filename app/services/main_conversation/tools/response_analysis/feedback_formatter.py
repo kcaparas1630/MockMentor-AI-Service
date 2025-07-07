@@ -12,9 +12,10 @@ Author: @kcaparas1630
 """
 
 from app.services.main_conversation.tools.context_utils.get_feedback_opening_line import get_feedback_opening_line
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackFormatterResponse
 
 
-def format_feedback_response(analysis_response) -> str:
+def format_feedback_response(analysis_response: InterviewFeedbackFormatterResponse) -> str:
     """
     Format the analysis response into a readable feedback text.
     
