@@ -34,14 +34,11 @@ import os
 from openai import AsyncOpenAI
 from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
-from typing import Dict, List, Tuple, Optional
-from app.services.speech_to_text.text_answers_service import TextAnswersService
-from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
+from typing import Dict, List
 from app.services.main_conversation.tools.question_utils.fetch_and_store_questions import fetch_and_store_questions
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
 from app.services.main_conversation.tools.question_utils.advance_to_next_question import advance_to_next_question
 from app.services.main_conversation.tools.context_utils.get_system_prompt import get_system_prompt
-from app.services.main_conversation.tools.context_utils.get_feedback_opening_line import get_feedback_opening_line
 from app.services.main_conversation.tools.conversation_flow import (
     validate_session_exists,
     handle_readiness_check,
