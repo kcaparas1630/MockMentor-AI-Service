@@ -9,12 +9,8 @@ Author: @kentc
 """
 
 import pytest
-import asyncio
-import json
-from openai import AsyncOpenAI
 from app.services.speech_to_text.tools.response_feedback import response_feedback
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
 
 @pytest.mark.asyncio
 async def test_suggest_exit_malicious_response():
