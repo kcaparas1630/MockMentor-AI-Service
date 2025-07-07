@@ -115,10 +115,23 @@ async def handle_websocket_connection(websocket: WebSocket):
                         message=transcript
                     )
                     response = await handle_user_message(user_message)
-                    await websocket.send_json(WebSocketMessage(
-                        type="message",
-                        content=response
-                    ).model_dump())
+                    
+                    # Check if this is a session end response
+                    if response.startswith("SESSION_END:"):
+                        # Extract the actual message content
+                        actual_message = response[12:]  # Remove "SESSION_END:" prefix
+                        await websocket.send_json(WebSocketMessage(
+                            type="message",
+                            content=actual_message
+                        ).model_dump())
+                        # Close the websocket connection after sending the session end message
+                        await websocket.close(code=1000, reason="Session terminated by AI")
+                        break
+                    else:
+                        await websocket.send_json(WebSocketMessage(
+                            type="message",
+                            content=response
+                        ).model_dump())
                     continue
 
                 # Otherwise, treat as a normal user message (text)
@@ -128,10 +141,23 @@ async def handle_websocket_connection(websocket: WebSocket):
                     message=user_ws_message.content
                 )
                 response: str = await handle_user_message(user_message)
-                await websocket.send_json(WebSocketMessage(
-                    type="message",
-                    content=response
-                ).model_dump())
+                
+                # Check if this is a session end response
+                if response.startswith("SESSION_END:"):
+                    # Extract the actual message content
+                    actual_message = response[12:]  # Remove "SESSION_END:" prefix
+                    await websocket.send_json(WebSocketMessage(
+                        type="message",
+                        content=actual_message
+                    ).model_dump())
+                    # # Close the websocket connection after sending the session end message
+                    # await websocket.close(code=1000, reason="Session terminated by AI")
+                    # break
+                else:
+                    await websocket.send_json(WebSocketMessage(
+                        type="message",
+                        content=response
+                    ).model_dump())
             except WebSocketDisconnect:
                 logger.info("WebSocket connection closed by client")
                 break

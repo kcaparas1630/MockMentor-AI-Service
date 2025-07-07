@@ -35,14 +35,24 @@ from openai import AsyncOpenAI
 from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
 from typing import Dict, List
-from app.services.speech_to_text.text_answers_service import TextAnswersService
-from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.services.main_conversation.tools.question_utils.fetch_and_store_questions import fetch_and_store_questions
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
 from app.services.main_conversation.tools.question_utils.advance_to_next_question import advance_to_next_question
 from app.services.main_conversation.tools.context_utils.get_system_prompt import get_system_prompt
-from app.services.main_conversation.tools.context_utils.get_feedback_opening_line import get_feedback_opening_line
+from app.services.main_conversation.tools.conversation_flow import (
+    validate_session_exists,
+    handle_readiness_check,
+    process_user_answer
+)
+from app.services.main_conversation.tools.response_analysis import (
+    format_feedback_response,
+    handle_next_action
+)
+from app.services.main_conversation.tools.response_analysis.action_handlers import reset_question_attempts
+from app.services.main_conversation.tools.question_utils.advance_to_next_question import advance_to_next_question
+from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
 from app.errors.exceptions import BadRequest, NotFound, InternalServerError
+
 
 class MainConversationService:
     """
@@ -202,6 +212,8 @@ class MainConversationService:
                 "ready": False,
                 "current_question_index": 0,
                 "waiting_for_answer": False,
+                "retry_attempts": 0,  # Track retry attempts for current question
+                "follow_up_attempts": 0,  # Track follow-up attempts for current question
                 "session_metadata": {
                     "user_name": interview_session.user_name,
                     "jobRole": interview_session.jobRole,
@@ -233,8 +245,8 @@ class MainConversationService:
         """
         Continue an ongoing conversation with just session_id and user message.
         
-        This method is designed for ongoing conversations where the session is already
-        initialized and we only need to process the user's message.
+        This method orchestrates the conversation flow by delegating to specialized
+        utility modules for different conversation states and actions.
         
         Args:
             session_id (str): The unique identifier for the interview session.
@@ -250,81 +262,34 @@ class MainConversationService:
             # Add user message to context
             self.add_to_context(session_id, "user", user_message)
             
-            # Get conversation context
-            context = self.get_conversation_context(session_id)
-            
-            # Ensure session state exists
-            if session_id not in self._session_state:
-                raise NotFound(f"Session {session_id} not found. Session must be initialized first.")
-            
+            # Validate session state
+            validate_session_exists(session_id, self._session_state)
             session_state = self._session_state[session_id]
-            
-            # Get the last user message (which we just added)
             last_user_message = user_message.strip()
             
-            # Handle readiness
+            # Handle readiness check
             if not session_state["ready"]:
-                if last_user_message and any(ready in last_user_message.lower() for ready in ["yes", "ready", "i'm ready", "let's start", "let's go"]):
-                    session_state["ready"] = True
-                    session_state["waiting_for_answer"] = True
-                    current_question = get_current_question(session_id, self._session_questions, self._current_question_index)
-                    response = f"Great! I'm excited to see how you do. Here's your first question {current_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
-                    self.add_to_context(session_id, "assistant", response)
-                    return response
-                else:
-                    return "Let me know when you're ready to begin!"
-
-            # Handle answer to current question
+                return handle_readiness_check(
+                    session_id, last_user_message, session_state,
+                    self._session_questions, self._current_question_index, self.add_to_context
+                )
+            
+            # Handle answer processing
             if session_state["waiting_for_answer"]:
-                # For ongoing conversations, we need to get session info from context
-                # This is a limitation of the current design - we need session metadata
-                # stored in the session state for ongoing conversations
-                if "session_metadata" not in session_state:
-                    raise BadRequest(f"Session {session_id} metadata not found. Session must be properly initialized.")
-                
-                session_metadata = session_state["session_metadata"]
-                current_question = get_current_question(session_id, self._session_questions, self._current_question_index)
-                analysis_request = InterviewAnalysisRequest(
-                    jobRole=session_metadata["jobRole"],
-                    jobLevel=session_metadata["jobLevel"],
-                    interviewType=session_metadata["questionType"],
-                    questionType=session_metadata["questionType"],
-                    question=current_question,
-                    answer=last_user_message
+                return await process_user_answer(
+                    session_id, last_user_message, session_state,
+                    self._session_questions, self._current_question_index, self.client,
+                    self.add_to_context, format_feedback_response,
+                    lambda session_id, analysis_response, feedback_text, session_state: handle_next_action(
+                        session_id, analysis_response, feedback_text, session_state,
+                        self._session_questions, self._current_question_index,
+                        self.add_to_context, advance_to_next_question, get_current_question, reset_question_attempts
+                    )
                 )
-                text_answers_service = TextAnswersService(self.client)
-                analysis_response = await text_answers_service.analyze_response(analysis_request)
-
-                # Format the analysis response as a string
-                feedback_text = (
-                    f"{get_feedback_opening_line(analysis_response.score)}"
-                    f"{analysis_response.feedback} "
-                    f"Here's what you did well: "
-                    f"{', '.join(analysis_response.strengths)}. "
-                    f"To make your answer even stronger, consider: "
-                    f"{', '.join(analysis_response.improvements)}. "
-                    f"Tips for next time: "
-                    f"{', '.join(analysis_response.tips)}."
-                )
-                
-                self.add_to_context(session_id, "assistant", feedback_text)
-                advance_to_next_question(session_id, self._current_question_index)
-
-                # Check if more questions remain
-                if self._current_question_index[session_id] < len(self._session_questions[session_id]):
-                    next_question = get_current_question(session_id, self._session_questions, self._current_question_index)
-                    response = f"Here's your next question: {next_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
-                    self.add_to_context(session_id, "assistant", response)
-                    session_state["waiting_for_answer"] = True
-                    return feedback_text + " " + response
-                else:
-                    session_state["waiting_for_answer"] = False
-                    return feedback_text + " That's the end of the interview. Great job!"
             
             # Defensive: If not waiting for answer, prompt user
-            if not session_state["waiting_for_answer"]:
-                return "No rush, take your time to answer the question."
-            
+            return "No rush, take your time to answer the question."
+
         except BadRequest:
             raise
         except NotFound:
@@ -332,5 +297,7 @@ class MainConversationService:
         except Exception as e:
             logger.error(f"Error in continue_conversation: {e}")
             raise InternalServerError("An unexpected error occurred during conversation continuation.")
+
+
 
     
