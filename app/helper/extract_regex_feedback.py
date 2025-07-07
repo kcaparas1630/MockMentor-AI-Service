@@ -58,9 +58,8 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
         )
         return feedback_response
 
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         # Fallback: extract only simple fields using regex, always provide default next_action
-        import re
         def extract_list(pattern, text):
             match = REGEX_PATTERNS[pattern].search(text)
             if match:
