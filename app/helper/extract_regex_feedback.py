@@ -23,6 +23,7 @@ from app.schemas.session_evaluation_schemas.interview_analysis_request import In
 from app.constants.regex_patterns import REGEX_PATTERNS
 from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, FollowUpQuestionDetails, NextAction
 import json
+from loguru import logger
 
 # Extract feedback from the content using regex patterns
 def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
@@ -107,7 +108,7 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             )
         )
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"An unexpected error occurred: {e}")
         return InterviewFeedbackResponse(
             score=5,
             feedback="An unexpected error occurred.",

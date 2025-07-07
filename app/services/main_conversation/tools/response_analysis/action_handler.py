@@ -19,11 +19,12 @@ from .action_handlers import (
     handle_exit_action,
     handle_continue_action
 )
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
 
 
 async def handle_next_action(
     session_id: str,
-    analysis_response,
+    analysis_response: InterviewFeedbackResponse,
     feedback_text: str,
     session_state: Dict,
     session_questions: Dict[str, list],
