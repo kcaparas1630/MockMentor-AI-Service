@@ -12,6 +12,7 @@ Author: @kcaparas1630
 """
 
 from typing import Dict
+from loguru import logger
 from .action_handlers import (
     handle_retry_action,
     handle_follow_up_action,
@@ -56,6 +57,7 @@ async def handle_next_action(
     """
     # Handle technical issues or retry
     if (analysis_response.technical_issue_detected or analysis_response.needs_retry):
+        logger.info("Detected technical issue or retry needed.")
         return await handle_retry_action(
             session_id, analysis_response, feedback_text, session_state,
             session_questions, current_question_index, add_to_context_func,
@@ -64,6 +66,7 @@ async def handle_next_action(
     
     # Handle engagement check and follow-up
     if analysis_response.engagement_check and analysis_response.next_action.type == "ask_follow_up":
+        logger.info("Engagement check detected, asking follow-up question.")
         return await handle_follow_up_action(
             session_id, analysis_response, feedback_text, session_state,
             session_questions, current_question_index, add_to_context_func,
@@ -72,12 +75,14 @@ async def handle_next_action(
     
     # Handle suggest_exit
     if analysis_response.next_action.type == "suggest_exit":
+        logger.info("Suggest exit action detected.")
         return await handle_exit_action(
             session_id, analysis_response, feedback_text, session_state, add_to_context_func
         )
     
     # Handle continue (advance to next question)
     if analysis_response.next_action.type == "continue":
+        logger.info("Continue action detected, advancing to next question.")
         return await handle_continue_action(
             session_id, analysis_response, feedback_text, session_state,
             session_questions, current_question_index, add_to_context_func,
