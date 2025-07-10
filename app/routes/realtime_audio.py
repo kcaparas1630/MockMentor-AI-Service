@@ -3,6 +3,7 @@ from app.services.transcription.transcriber import TranscriberService
 from collections import deque
 import time
 import asyncio
+import tempfile
 
 router = APIRouter()
 
@@ -46,18 +47,23 @@ async def websocket_audio_stream(websocket: WebSocket):
     async def try_transcribe():
         """ Transcribe and send result back if buffer has content """
         if not buffer.is_empty():
-            combined = "".join(buffer.get_and_clear())
+        # Decode and write raw audio to a temp file
+            audio_bytes = b''.join([base64.b64decode(c) for c in buffer.get_and_clear()])
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
+                temp_audio.write(audio_bytes)
+                temp_path = temp_audio.name
+
+        try:
+            transcript = transcriber.transcribe_base64_audio(base64.b64encode(audio_bytes).decode())
+            await websocket.send_json({
+                "type": "transcript",
+                "text": transcript
+            })
+        finally:
             try:
-                transcript = transcriber.transcribe_base64_audio(combined)
-                await websocket.send_json({
-                    "type": "transcript",
-                    "text": transcript
-                })
-            except Exception as e:
-                await websocket.send_json({
-                    "type": "error",
-                    "message": str(e)
-                })
+                os.unlink(temp_path)
+            except OSError:
+                pass
 
     try:
         while True:
