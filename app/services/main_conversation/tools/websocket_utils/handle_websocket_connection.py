@@ -32,6 +32,7 @@ from app.services.main_conversation.main_conversation_service import MainConvers
 from app.services.main_conversation.tools.websocket_utils.handle_user_message import handle_user_message
 from app.services.transcription.transcriber import TranscriberService
 from app.errors.exceptions import InternalServerError
+from app.services.transcription.audio_buffer import AudioStreamBuffer
 
 async def handle_websocket_connection(websocket: WebSocket):
     """
@@ -79,6 +80,7 @@ async def handle_websocket_connection(websocket: WebSocket):
         ).model_dump())
 
         transcriber = TranscriberService()
+        audio_buffer = AudioStreamBuffer()
 
         # Handle ongoing conversation
         while True:
