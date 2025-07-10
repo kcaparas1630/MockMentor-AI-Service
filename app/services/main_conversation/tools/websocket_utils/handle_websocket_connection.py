@@ -95,6 +95,80 @@ async def handle_websocket_connection(websocket: WebSocket):
                     })
                     continue
 
+                # Handle streaming audio chunks
+                if raw_message.get("type") == "audio_chunk":
+                    chunk_data = raw_message.get("data")
+                    if not chunk_data:
+                        await websocket.send_json({
+                            "type": "error",
+                            "content": "Missing 'data' field for audio chunk"
+                        })
+                        continue
+
+                    should_transcribe = audio_buffer.add_chunk(chunk_data)
+
+                    if should_transcribe:
+                        chunks = audio_buffer.get_and_clear_chunks()
+                        if chunks:
+                            try:
+                                import base64
+                                combined_bytes = b''.join([base64.b64decode(c) for c in chunks])
+                                transcript = transcriber.transcribe_base64_audio(
+                                    base64.b64encode(combined_bytes).decode()
+                                )
+                            except Exception as e:
+                                logger.error(f"Error transcribing chunked audio: {e}")
+                                await websocket.send_json({
+                                    "type": "error",
+                                    "message": "Error during streamed transcription"
+                                })
+                                continue
+
+                            user_message = UserMessage(
+                                session_id=session.session_id,
+                                message=transcript
+                            )
+                            response = await handle_user_message(user_message)
+
+                            await websocket.send_json(WebSocketMessage(
+                                type="message",
+                                content=response
+                            ).model_dump())
+
+                    continue
+
+                # Handle end of audio stream
+                if raw_message.get("type") == "audio_end":
+                    if audio_buffer.has_pending_chunks():
+                        chunks = audio_buffer.get_and_clear_chunks()
+                        try:
+                            import base64
+                            combined_bytes = b''.join([base64.b64decode(c) for c in chunks])
+                            transcript = transcriber.transcribe_base64_audio(
+                                base64.b64encode(combined_bytes).decode()
+                            )
+                        except Exception as e:
+                            logger.error(f"Error transcribing remaining chunked audio: {e}")
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": "Error finalizing streamed transcription"
+                            })
+                            continue
+
+                        user_message = UserMessage(
+                            session_id=session.session_id,
+                            message=transcript
+                        )
+                        response = await handle_user_message(user_message)
+
+                        await websocket.send_json(WebSocketMessage(
+                            type="message",
+                            content=response
+                        ).model_dump())
+
+                    audio_buffer.mark_inactive()
+                    continue
+
                 if raw_message.get("type") == "audio":
                     base64_data = raw_message.get("data")
                     if not base64_data:
