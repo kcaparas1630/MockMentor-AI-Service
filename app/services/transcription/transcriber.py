@@ -30,7 +30,7 @@ class TranscriberService:
         """
         global _model
         if _model is None:
-            _model = WhisperModel("small.en", device="cpu", compute_type="int8")
+            _model = WhisperModel("base.en", device="cpu", compute_type="int8", num_workers=1, cpu_threads=4)
         return _model
     
     def transcribe_base64_audio(self, base64_data: str) -> str:
