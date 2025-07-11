@@ -17,7 +17,7 @@ from typing import Literal
 
 # Base model for all websocket messages
 class WebSocketMessage(BaseModel):
-    type: Literal["message", "error"]
+    type: Literal["message", "error", "transcript", "incremental_transcript", "heartbeat"]
     content: str
 
 # Model for user messages

@@ -30,30 +30,50 @@ class TranscriberService:
         """
         global _model
         if _model is None:
-            _model = WhisperModel("small.en", device="cpu", compute_type="int8")
+            _model = WhisperModel("base.en", device="cpu", compute_type="int8", num_workers=1, cpu_threads=4)
         return _model
     
     def transcribe_base64_audio(self, base64_data: str) -> str:
-       
-        audio_bytes = base64.b64decode(base64_data)       
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_audio:
-            temp_audio.write(audio_bytes)
-            temp_path = temp_audio.name       
+        """
+        Transcribes base64 encoded audio data (WebM/Opus format) to text.
+        
+        Args:
+            base64_data (str): Base64 encoded audio data in WebM/Opus format
+            
+        Returns:
+            str: Transcribed text from the audio
+        """
         try:
+            audio_bytes = base64.b64decode(base64_data)
+            logger.debug(f"Decoded audio data, size: {len(audio_bytes)} bytes")
+            
+            # Use .webm extension for WebM/Opus format
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_audio:
+                temp_audio.write(audio_bytes)
+                temp_path = temp_audio.name
+            
+            logger.debug(f"Created temporary file: {temp_path}")
+            
             segments, _ = self.model.transcribe(
                 temp_path,
-                beam_size=7 ,
+                beam_size=7,
                 best_of=1,
                 temperature=0,
                 vad_filter=True,
                 word_timestamps=False,
                 condition_on_previous_text=False
             )
+            
             transcribe_text = " ".join([seg.text for seg in segments])
-            logger.info(f"Transcribed text: {transcribe_text}")
             return transcribe_text
+            
+        except Exception as e:
+            logger.error(f"Error transcribing audio: {str(e)}")
+            raise
         finally:
             try:
-                os.unlink(temp_path)
-            except OSError:
-                logger.warning(f"Error removing temporary file {temp_path}")
+                if 'temp_path' in locals():
+                    os.unlink(temp_path)
+                    logger.debug(f"Cleaned up temporary file: {temp_path}")
+            except OSError as e:
+                logger.warning(f"Error removing temporary file {temp_path}: {str(e)}")
