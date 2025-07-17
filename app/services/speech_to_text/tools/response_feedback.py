@@ -24,9 +24,189 @@ from app.schemas.session_evaluation_schemas.interview_analysis_request import In
 from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, NextAction
 from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
 from app.helper.extract_regex_feedback import extract_regex_feedback
+from app.core.secure_prompt_manager import secure_prompt_manager
 import logging
+import re
+import html
 
 logger = logging.getLogger(__name__)
+
+def sanitize_text(text: str) -> str:
+    """
+    Sanitize text input to prevent injection attacks and ensure data safety.
+    
+    This function performs multiple sanitization steps:
+    1. HTML entity encoding to prevent XSS
+    2. Strips leading/trailing whitespace
+    3. Removes null bytes and other control characters
+    4. Limits length to prevent DoS attacks
+    5. Normalizes unicode characters
+    
+    Args:
+        text (str): The text to sanitize
+        
+    Returns:
+        str: The sanitized text
+        
+    Raises:
+        ValueError: If text is None or empty after sanitization
+    """
+    if text is None:
+        raise ValueError("Text cannot be None")
+    
+    # Convert to string if not already
+    text = str(text)
+    
+    # HTML entity encoding to prevent XSS
+    text = html.escape(text)
+    
+    # Strip leading/trailing whitespace
+    text = text.strip()
+    
+    # Remove null bytes and other control characters (except newlines and tabs)
+    text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+    
+    # Limit length to prevent DoS attacks (max 1000 characters)
+    if len(text) > 1000:
+        text = text[:1000]
+    
+    # Normalize unicode characters
+    text = text.encode('utf-8', errors='ignore').decode('utf-8')
+    
+    # Check if text is empty after sanitization
+    if not text:
+        raise ValueError("Text cannot be empty after sanitization")
+    
+    return text
+
+def validate_ai_response(content: str) -> bool:
+    """
+    Validate AI response to prevent system prompt leakage and ensure security.
+    
+    This function checks for patterns that could indicate system prompt leakage,
+    which could expose sensitive instructions to attackers. It validates that
+    the AI response doesn't contain internal system instructions or sensitive
+    prompt details.
+    
+    Args:
+        content (str): The AI response content to validate
+        
+    Returns:
+        bool: True if the response is valid and safe, False if it contains
+              potential system prompt leakage or security issues
+              
+    Example:
+        >>> validate_ai_response('{"score": 7, "feedback": "Good response"}')
+        True
+        >>> validate_ai_response('<core_identity>You are MockMentor...</core_identity>')
+        False
+    """
+    if not content or not isinstance(content, str):
+        return False
+    
+    # Check for empty or whitespace-only content
+    if not content.strip():
+        return False
+    
+    # Check for system prompt leakage patterns
+    leak_patterns = [
+        r"<core_identity>",
+        r"core_identity",  # partial match
+        r"MockMentor.*expert HR professional",
+        r"mockmentor",  # partial match
+        r"expert hr professional",  # partial match
+        r"system.*content.*format",
+        r"<output_format>",
+        r"<technical_detection>",
+        r"<engagement_check>",
+        r"<scoring_rules>",
+        r"<evaluation_criteria>",
+        r"<tone_guidelines>",
+        r"<efficiency_rules>",
+        r"Return ONLY valid JSON",
+        r"CRITICAL RULES FOR QUESTIONS",
+        r"expert HR professional.*15\+ years",
+        r"conversational.*complete sentences",
+        r"realistic.*supportive interview environment"
+    ]
+    
+    for pattern in leak_patterns:
+        if re.search(pattern, content, re.IGNORECASE | re.DOTALL):
+            logger.warning(f"Potential system prompt leakage detected: {pattern}")
+            return False
+    
+    # Check for excessive length that might indicate prompt leakage
+    if len(content) > 5000:  # Reasonable limit for JSON responses
+        logger.warning("AI response exceeds reasonable length limit")
+        return False
+    
+    # Check for suspicious content that might indicate the AI is explaining its instructions
+    suspicious_patterns = [
+        r"I am.*AI.*assistant",
+        r"my instructions.*are",
+        r"according to.*prompt",
+        r"as per.*system",
+        r"based on.*instructions"
+    ]
+    
+    for pattern in suspicious_patterns:
+        if re.search(pattern, content, re.IGNORECASE):
+            logger.warning(f"Suspicious content detected: {pattern}")
+            return False
+    
+    return True
+
+def validate_interview_input(analysis_request: InterviewAnalysisRequest) -> InterviewAnalysisRequest:
+
+    """
+    Validate the interview input and return the validated input.
+
+    Args:
+        analysis_request (InterviewAnalysisRequest): The interview analysis request.
+
+    Returns:
+        InterviewAnalysisRequest: The validated interview analysis request.
+    """
+
+    # Whitelist validation for controlled fields
+    ALLOWED_JOB_ROLES = ["Software Engineer"] # TODO: Add more job roles
+    ALLOWED_JOB_LEVELS = ["entry", "mid", "senior", "principal"]
+    ALLOWED_INTERVIEW_TYPES = ["behavioral", "technical", "system-design", "coding-challenge", "hr-round"]
+    ALLOWED_QUESTION_TYPES = ["behavioral", "technical", "system-design", "coding-challenge", "hr-round"]
+
+    # Validate job role
+    if analysis_request.jobRole not in ALLOWED_JOB_ROLES:
+        raise ValueError(f"Invalid job role: {analysis_request.jobRole}")
+    
+    # Validate job level
+    if analysis_request.jobLevel not in ALLOWED_JOB_LEVELS:
+        raise ValueError(f"Invalid job level: {analysis_request.jobLevel}")
+    
+    # Validate interview type
+    if analysis_request.interviewType not in ALLOWED_INTERVIEW_TYPES:
+        raise ValueError(f"Invalid interview type: {analysis_request.interviewType}")
+    
+    # Validate question type
+    if analysis_request.questionType not in ALLOWED_QUESTION_TYPES:
+        raise ValueError(f"Invalid question type: {analysis_request.questionType}")
+    
+    # Validate question
+    if not analysis_request.question:
+        raise ValueError("Question cannot be empty.")
+    
+    # Validate answer
+    if not analysis_request.answer:
+        raise ValueError("Answer cannot be empty.")
+    
+    # Sanitize free-form text fields
+    analysis_request.jobRole = sanitize_text(analysis_request.jobRole)
+    analysis_request.jobLevel = sanitize_text(analysis_request.jobLevel)
+    analysis_request.interviewType = sanitize_text(analysis_request.interviewType)
+    analysis_request.questionType = sanitize_text(analysis_request.questionType)
+    analysis_request.question = sanitize_text(analysis_request.question)
+    analysis_request.answer = sanitize_text(analysis_request.answer)
+    
+    return analysis_request
 
 async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnalysisRequest) -> InterviewFeedbackResponse:
     """
@@ -80,6 +260,12 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
         >>> print(f"Strengths: {feedback.strengths}")
     """
     try:
+        # Validate and sanitize the input
+        analysis_request = validate_interview_input(analysis_request)
+        
+        # Use secure prompt manager to generate safe prompt
+        system_prompt = secure_prompt_manager.get_response_analysis_prompt(analysis_request)
+        
         # Make the prompt more explicit about JSON formatting
         response = await client.chat.completions.create(
             model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
@@ -92,92 +278,7 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
             messages=[
                 {
                     "role": "system",
-                    "content": f"""<core_identity>
-You are MockMentor, an expert HR professional and interview coach. Analyze interview responses and provide constructive feedback that is specific, balanced, and actionable.
-</core_identity>
-
-<output_format>
-Return ONLY valid JSON with this exact structure - NO thought process, explanations, or additional text:
-{
-  "score": 7,
-  "feedback": "Brief summary (2-3 sentences)",
-  "strengths": ["Strength 1", "Strength 2", "Strength 3"],
-  "improvements": ["Actionable improvement 1", "Actionable improvement 2", "Actionable improvement 3"],
-  "tips": ["Tip 1", "Tip 2", "Tip 3"],
-  "technical_issue_detected": false,
-  "needs_retry": false,
-  "next_action": {
-    "type": "continue",
-    "message": "Your message to the user for the next turn"
-  }
-}
-
-Do not include any text before or after the JSON. Do not show your thinking process or reasoning steps.
-</output_format>
-
-<technical_detection>
-Set "technical_issue_detected": true and "needs_retry": true when detecting:
-- Responses ending with "...", "--", or incomplete words
-- Responses ending with prepositions: "at", "in", "for", "with", "by", "to", "on"
-- Responses ending with conjunctions: "and", "but", "so", "because"
-- Mid-sentence cutoffs during explanations
-- Missing expected conclusions in structured responses (STAR method)
-
-Examples: "I implemented the API..." ✓ | "Working with the database to..." ✓ | "The results showed..." ✓
-</technical_detection>
-
-<engagement_check>
-Set "next_action.type": "suggest_exit" after TWO instances of:
-- Answers like "Maybe?", "I don't know", "I'd rather not"
-- Malicious responses toward interviewer
-- Complete disengagement patterns
-</engagement_check>
-
-<scoring_rules>
-**1-2**: No relevant content, off-topic, or completely inadequate
-- Action: Ask if they want to continue, if yes → suggest_exit
-
-**3-4**: Minimal content, lacks depth, vague answers, poor structure
-- Action: Provide feedback, move to next question (NO follow-ups)
-
-**5-6**: Some relevant content but significant gaps, lacks examples/results
-
-**7-8**: Good responses with relevant examples, clear structure, minor improvements needed
-
-**9-10**: Comprehensive, well-structured, quantifiable results, exceptional communication
-
-**Critical**: Technical cutoffs override content scoring - always flag technical issues first.
-</scoring_rules>
-
-<evaluation_criteria>
-- Relevance to question (25%)
-- Structure and clarity (25%) - STAR method for behavioral questions
-- Specific examples and quantifiable results (25%)
-- Communication skills and role demonstration (25%)
-</evaluation_criteria>
-
-<tone_guidelines>
-**Technical Issues**: "It looks like we had some technical difficulties. Let's give that another try."
-
-**Content Scores**:
-- 7-10: Encouraging and celebratory
-- 5-6: Supportive but clear about improvements needed
-- 3-4: Direct but constructive, move to next question
-- 1-2: Honest about inadequacy while remaining supportive
-
-**General**: Be encouraging but efficient. Don't let candidates get stuck on one question.
-</tone_guidelines>
-
-<efficiency_rules>
-- Limit to ONE retry per question maximum
-- Be conservative with follow-ups - only when absolutely necessary
-- When in doubt, provide feedback and move to next question
-- Don't evaluate content when technical issues are present
-</efficiency_rules>
-
-Context: Job Role: {analysis_request.jobRole}, Job Level: {analysis_request.jobLevel}, Interview Type: {analysis_request.interviewType}, Question Type: {analysis_request.questionType}
-Question: {analysis_request.question}
-Answer: {analysis_request.answer}"""
+                    "content": system_prompt
                 },
                 {
                     "role": "user",
@@ -195,6 +296,25 @@ User Response: {analysis_request.answer}"""
         # Parse the response into our schema format
         content = response.choices[0].message.content
         
+        # Validate the AI response to prevent system prompt leakage
+        if not validate_ai_response(content):
+            logger.error(f"AI response validation failed. Content: {content}")
+            return InterviewFeedbackResponse(
+                score=0,
+                feedback="Unable to analyze the response due to a security issue.",
+                strengths=["N/A"],
+                improvements=["N/A"],
+                tips=["Please try again later."],
+                engagement_check=False,
+                technical_issue_detected=True,
+                needs_retry=True,
+                next_action=NextAction(
+                    type="retry_question",
+                    message="There was a security issue analyzing your response. Please try answering the question again.",
+                    follow_up_question_details=None
+                )
+            )
+
         # Create a request object with the original question and response
         request = InterviewRequest(question=analysis_request.question, answer=analysis_request.answer)
         
