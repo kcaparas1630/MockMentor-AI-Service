@@ -19,7 +19,7 @@ Dependencies:
 Author: @kcaparas1630
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict
 from dataclasses import dataclass
 import re
 import html
@@ -113,7 +113,7 @@ class PromptTemplate:
         try:
             return self.template.format(**sanitized_data)
         except KeyError as e:
-            raise ValueError(f"Template rendering error: {e}")
+            raise ValueError(f"Template rendering error: {e}") from e
 
 class SecurePromptManager:
     """
