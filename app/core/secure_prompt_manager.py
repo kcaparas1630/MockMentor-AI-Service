@@ -159,6 +159,7 @@ Return ONLY valid JSON with this exact structure - NO thought process, explanati
 "feedback": ""
 "improvements": []
 "tips": []
+Do not include any text before or after the JSON. Do not show your thinking process or reasoning steps.
 </output_format>
 
 <technical_detection>
@@ -173,7 +174,7 @@ Examples: "I implemented the API..." ✓ | "Working with the database to..." ✓
 
 <engagement_check>
 Set "next_action.type": "suggest_exit" after TWO instances of:
-- Answers like "Maybe?", "I don't know", "I'd rather not"
+- Answers like "Maybe?", "I don't know", "I'd rather not", "end the interview", "end the session", "
 - Malicious responses toward interviewer
 - Complete disengagement patterns
 </engagement_check>
