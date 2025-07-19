@@ -24,60 +24,12 @@ from app.schemas.session_evaluation_schemas.interview_analysis_request import In
 from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, NextAction
 from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
 from app.helper.extract_regex_feedback import extract_regex_feedback
-from app.core.secure_prompt_manager import secure_prompt_manager
+from app.core.secure_prompt_manager import secure_prompt_manager, sanitize_text
 import logging
 import re
-import html
+
 
 logger = logging.getLogger(__name__)
-
-def sanitize_text(text: str) -> str:
-    """
-    Sanitize text input to prevent injection attacks and ensure data safety.
-    
-    This function performs multiple sanitization steps:
-    1. HTML entity encoding to prevent XSS
-    2. Strips leading/trailing whitespace
-    3. Removes null bytes and other control characters
-    4. Limits length to prevent DoS attacks
-    5. Normalizes unicode characters
-    
-    Args:
-        text (str): The text to sanitize
-        
-    Returns:
-        str: The sanitized text
-        
-    Raises:
-        ValueError: If text is None or empty after sanitization
-    """
-    if text is None:
-        raise ValueError("Text cannot be None")
-    
-    # Convert to string if not already
-    text = str(text)
-    
-    # HTML entity encoding to prevent XSS
-    text = html.escape(text)
-    
-    # Strip leading/trailing whitespace
-    text = text.strip()
-    
-    # Remove null bytes and other control characters (except newlines and tabs)
-    text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
-    
-    # Limit length to prevent DoS attacks (max 1000 characters)
-    if len(text) > 1000:
-        text = text[:1000]
-    
-    # Normalize unicode characters
-    text = text.encode('utf-8', errors='ignore').decode('utf-8')
-    
-    # Check if text is empty after sanitization
-    if not text:
-        raise ValueError("Text cannot be empty after sanitization")
-    
-    return text
 
 def validate_ai_response(content: str) -> bool:
     """
