@@ -13,12 +13,13 @@ Author: @kcaparas1630
 """
 
 from pydantic import BaseModel
-from typing import Literal
+from typing import Literal, Optional, Dict, Any
 
 # Base model for all websocket messages
 class WebSocketMessage(BaseModel):
     type: Literal["message", "error", "transcript", "incremental_transcript", "heartbeat"]
     content: str
+    state: Optional[Dict[str, Any]] = None
 
 # Model for user messages
 class WebSocketUserMessage(BaseModel):
