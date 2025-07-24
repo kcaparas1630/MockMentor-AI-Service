@@ -168,4 +168,5 @@ async def advance_to_next_question_with_message(
 def reset_question_attempts(session_state: Dict) -> None:
     """Reset retry and follow-up attempts for a new question."""
     session_state["retry_attempts"] = 0
-    session_state["follow_up_attempts"] = 0 
+    session_state["follow_up_attempts"] = 0
+    session_state["question_answered"] = False 
