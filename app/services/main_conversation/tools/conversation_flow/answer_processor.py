@@ -60,6 +60,9 @@ async def process_user_answer(
     if "session_metadata" not in session_state:
         raise BadRequest(f"Session {session_id} metadata not found. Session must be properly initialized.")
     
+    # Set question_answered state immediately when user submits answer
+    session_state["question_answered"] = True
+    
     # Analyze the user's response
     analysis_response = await analyze_user_response(
         session_id, user_message, session_state, session_questions, current_question_index, client
