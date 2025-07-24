@@ -38,11 +38,12 @@ import base64
 from typing import Optional
 import time
 
-async def send_websocket_message(websocket: WebSocket, message_type: str, content: str):
+async def send_websocket_message(websocket: WebSocket, message_type: str, content: str, state: dict = None):
     """Send a WebSocket message with consistent formatting."""
     await websocket.send_json(WebSocketMessage(
         type=message_type,
-        content=content
+        content=content,
+        state=state
     ).model_dump())
 
 async def send_error_message(websocket: WebSocket, error_message: str):
@@ -94,13 +95,13 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
         
         # Process AI response
         ai_processing_start = time.time()
-        response = await handle_user_message(user_message)
+        response, session_state = await handle_user_message(user_message)
         ai_processing_time = time.time() - ai_processing_start
         logger.debug(f"AI processing completed in {ai_processing_time:.3f}s")
         
         # Send AI response
         response_send_start = time.time()
-        await send_response(websocket, response)
+        await send_response(websocket, response, session_state)
         response_send_time = time.time() - response_send_start
         logger.debug(f"Sent AI response to client in {response_send_time:.3f}s")
         
@@ -111,15 +112,15 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
         logger.error(f"Error processing transcript: {e}")
         await send_error_message(websocket, "Error processing transcript")
 
-async def send_response(websocket: WebSocket, response: str):
+async def send_response(websocket: WebSocket, response: str, session_state: dict = None):
     """Send AI response and handle session end if needed."""
     try:
         if response.startswith("SESSION_END:"):
             actual_message = response[12:]
-            await send_websocket_message(websocket, "message", actual_message)
+            await send_websocket_message(websocket, "message", actual_message, session_state)
             await websocket.close(code=1000, reason="Session terminated by AI")
         else:
-            await send_websocket_message(websocket, "message", response)
+            await send_websocket_message(websocket, "message", response, session_state)
     except Exception as e:
         logger.error(f"Error sending response: {e}")
         raise
@@ -151,7 +152,8 @@ async def handle_websocket_connection(websocket: WebSocket):
         service = MainConversationService()
         
         response: str = await service.conversation_with_user_response(session)
-        await send_websocket_message(websocket, "message", response)
+        session_state = service._session_state.get(session.session_id, {})
+        await send_websocket_message(websocket, "message", response, session_state)
         
         while True:
             try:
@@ -270,8 +272,8 @@ async def handle_websocket_connection(websocket: WebSocket):
                         message=user_ws_message.content
                     )
                     
-                    response = await handle_user_message(user_message)
-                    await send_response(websocket, response)
+                    response, session_state = await handle_user_message(user_message)
+                    await send_response(websocket, response, session_state)
                     continue
                 
                 logger.warning(f"Unknown message type: {message_type}")
