@@ -47,6 +47,7 @@ def handle_readiness_check(
     if user_message and any(keyword in user_message.lower() for keyword in ready_keywords):
         session_state["ready"] = True
         session_state["waiting_for_answer"] = True
+        session_state["question_answered"] = False
         current_question = get_current_question(session_id, session_questions, current_question_index)
         response = f"Great! I'm excited to see how you do. Here's your first question {current_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
         add_to_context_func(session_id, "assistant", response)
