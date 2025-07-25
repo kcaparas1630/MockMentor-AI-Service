@@ -31,6 +31,58 @@ import re
 
 logger = logging.getLogger(__name__)
 
+def clean_ai_response(content: str) -> str:
+    """
+    Clean AI response by removing thinking tags and extracting only JSON content.
+    
+    This function removes unwanted thinking processes that some AI models include
+    despite explicit instructions not to include them. It extracts only the JSON
+    content needed for parsing.
+    
+    Args:
+        content (str): The raw AI response content
+        
+    Returns:
+        str: Cleaned content with only JSON
+        
+    Example:
+        >>> clean_ai_response('<think>reasoning...</think>{"score": 7}')
+        '{"score": 7}'
+        >>> clean_ai_response('{"score": 7, "feedback": "Good"}')
+        '{"score": 7, "feedback": "Good"}'
+    """
+    if not content or not isinstance(content, str):
+        return content
+    
+    # Remove thinking tags and their content
+    content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Remove any remaining thinking-related patterns
+    content = re.sub(r'</?think[^>]*>', '', content, flags=re.IGNORECASE)
+    
+    # Strip whitespace
+    content = content.strip()
+    
+    # Extract JSON if it exists (find first { to last })
+    json_start = content.find('{')
+    if json_start != -1:
+        # Find the matching closing brace
+        brace_count = 0
+        json_end = -1
+        for i in range(json_start, len(content)):
+            if content[i] == '{':
+                brace_count += 1
+            elif content[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    json_end = i + 1
+                    break
+        
+        if json_end != -1:
+            content = content[json_start:json_end]
+    
+    return content
+
 def validate_ai_response(content: str) -> bool:
     """
     Validate AI response to prevent system prompt leakage and ensure security.
@@ -247,6 +299,9 @@ User Response: {analysis_request.answer}"""
         
         # Parse the response into our schema format
         content = response.choices[0].message.content
+        
+        # Clean the response by removing thinking tags and any content before JSON
+        content = clean_ai_response(content)
         
         # Validate the AI response to prevent system prompt leakage
         if not validate_ai_response(content):
