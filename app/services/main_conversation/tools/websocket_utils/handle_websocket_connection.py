@@ -119,6 +119,39 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
             actual_message = response[12:]
             await send_websocket_message(websocket, "message", actual_message, session_state)
             await websocket.close(code=1000, reason="Session terminated by AI")
+        elif response.startswith("NEXT_QUESTION:"):
+            # Parse and send structured next question data
+            import json
+            data_json = response[14:]  # Remove "NEXT_QUESTION:" prefix
+            response_data = json.loads(data_json)
+            
+            # Send feedback first
+            await send_websocket_message(websocket, "message", response_data["feedback"], session_state)
+            
+            # Send next question data
+            await websocket.send_json({
+                "type": "next_question",
+                "content": response_data["next_question"]["question"],
+                "question_data": {
+                    "question": response_data["next_question"]["question"],
+                    "questionNumber": response_data["next_question"]["questionNumber"],
+                    "totalQuestions": response_data["next_question"]["totalQuestions"],
+                    "questionIndex": response_data["next_question"]["questionIndex"]
+                },
+                "state": session_state
+            })
+        elif response.startswith("INTERVIEW_COMPLETE:"):
+            # Parse and send interview completion data
+            import json
+            data_json = response[19:]  # Remove "INTERVIEW_COMPLETE:" prefix
+            response_data = json.loads(data_json)
+            
+            await websocket.send_json({
+                "type": "interview_complete",
+                "content": response_data["feedback"],
+                "message": response_data["message"],
+                "state": session_state
+            })
         else:
             await send_websocket_message(websocket, "message", response, session_state)
     except Exception as e:

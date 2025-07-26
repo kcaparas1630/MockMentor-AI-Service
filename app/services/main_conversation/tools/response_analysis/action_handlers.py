@@ -122,17 +122,45 @@ async def handle_continue_action(
     # Check if more questions remain
     if current_question_index[session_id] < len(session_questions[session_id]):
         next_question = get_current_question_func(session_id, session_questions, current_question_index)
+        current_index = current_question_index[session_id]
+        total_questions = len(session_questions[session_id])
+        
         next_message = f"Here's your next question: {next_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
         add_to_context_func(session_id, "assistant", next_message)
         session_state["waiting_for_answer"] = True
         reset_question_attempts_func(session_state)
-        return feedback_text + analysis_response.next_action.message + next_message
+        
+        # Return structured response with next question data
+        response_data = {
+            "type": "next_question",
+            "feedback": feedback_text + analysis_response.next_action.message,
+            "next_question": {
+                "question": next_question,
+                "questionNumber": current_index + 1,
+                "totalQuestions": total_questions,
+                "questionIndex": current_index
+            },
+            "message": next_message
+        }
+        
+        # Return JSON-like string that can be parsed by WebSocket handler
+        import json
+        return f"NEXT_QUESTION:{json.dumps(response_data)}"
     else:
         session_state["waiting_for_answer"] = False
         end_message = analysis_response.next_action.message + "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
         logger.info(f"Feedback and end message: {feedback_text + end_message}")
-        return feedback_text + end_message
+        
+        # Return structured response for interview completion
+        response_data = {
+            "type": "interview_complete",
+            "feedback": feedback_text + end_message,
+            "message": end_message
+        }
+        
+        import json
+        return f"INTERVIEW_COMPLETE:{json.dumps(response_data)}"
 
 
 async def advance_to_next_question_with_message(
