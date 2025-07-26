@@ -18,7 +18,9 @@ from typing import Dict, List
 from app.services.speech_to_text.text_answers_service import TextAnswersService
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
+from app.services.main_conversation.tools.question_utils.save_answer import save_answer
 from app.errors.exceptions import BadRequest
+from loguru import logger
 
 
 async def process_user_answer(
@@ -62,6 +64,29 @@ async def process_user_answer(
     
     # Set question_answered state immediately when user submits answer
     session_state["question_answered"] = True
+    
+    # Get current question and save the answer to database
+    current_question = get_current_question(session_id, session_questions, current_question_index)
+    current_index = current_question_index.get(session_id, 0)
+    session_metadata = session_state["session_metadata"]
+    
+    # Save answer to MongoDB
+    save_result = await save_answer(
+        session_id=session_id,
+        question=current_question,
+        answer=user_message,
+        question_index=current_index,
+        metadata={
+            "jobRole": session_metadata["jobRole"],
+            "jobLevel": session_metadata["jobLevel"], 
+            "questionType": session_metadata["questionType"]
+        }
+    )
+    
+    if save_result["success"]:
+        logger.info(f"Successfully saved answer for session {session_id}, question {current_index}")
+    else:
+        logger.error(f"Failed to save answer: {save_result['error']}")
     
     # Analyze the user's response
     analysis_response = await analyze_user_response(
