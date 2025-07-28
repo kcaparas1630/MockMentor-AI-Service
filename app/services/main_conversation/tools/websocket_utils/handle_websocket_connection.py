@@ -38,12 +38,13 @@ import base64
 from typing import Optional
 import time
 
-async def send_websocket_message(websocket: WebSocket, message_type: str, content: str, state: dict = None):
+async def send_websocket_message(websocket: WebSocket, message_type: str, content: str, state: dict = None, next_question: dict = None):
     """Send a WebSocket message with consistent formatting."""
     await websocket.send_json(WebSocketMessage(
         type=message_type,
         content=content,
-        state=state
+        state=state,
+        next_question=next_question
     ).model_dump())
 
 async def send_error_message(websocket: WebSocket, error_message: str):
@@ -125,21 +126,28 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
             data_json = response[14:]  # Remove "NEXT_QUESTION:" prefix
             response_data = json.loads(data_json)
             
-            # Send feedback first
-            await send_websocket_message(websocket, "message", response_data["feedback"], session_state)
+            # Send single message with feedback and next question data combined
+            next_question_data = {
+                "question": response_data["next_question"]["question"],
+                "questionNumber": response_data["next_question"]["questionNumber"],
+                "totalQuestions": response_data["next_question"]["totalQuestions"],
+                "questionIndex": response_data["next_question"]["questionIndex"]
+            }
+            # Use the complete formatted feedback (which includes score-based opening, strengths, improvements, tips)
+            # The feedback field should already contain the full formatted feedback from format_feedback_response()
+            formatted_feedback = response_data["feedback"]
+            next_action_message = response_data.get("next_action_message", "")
             
-            # Send next question data
-            await websocket.send_json({
-                "type": "next_question",
-                "content": response_data["next_question"]["question"],
-                "question_data": {
-                    "question": response_data["next_question"]["question"],
-                    "questionNumber": response_data["next_question"]["questionNumber"],
-                    "totalQuestions": response_data["next_question"]["totalQuestions"],
-                    "questionIndex": response_data["next_question"]["questionIndex"]
-                },
-                "state": session_state
-            })
+            # Combine the formatted feedback with the next action message
+            combined_message = f"{formatted_feedback} {next_action_message}".strip()
+            
+            await send_websocket_message(
+                websocket, 
+                "next_question", 
+                combined_message, 
+                session_state,
+                next_question_data
+            )
         elif response.startswith("INTERVIEW_COMPLETE:"):
             # Parse and send interview completion data
             import json
