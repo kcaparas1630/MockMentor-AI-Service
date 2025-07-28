@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 
 def clean_ai_response(content: str) -> str:
     """
-    Clean AI response by removing thinking tags and extracting only JSON content.
+    Clean AI response by removing thinking content and extracting only JSON.
     
-    This function removes unwanted thinking processes that some AI models include
-    despite explicit instructions not to include them. It extracts only the JSON
+    This function aggressively removes unwanted thinking processes that some AI models 
+    include despite explicit instructions not to include them. It extracts only the JSON
     content needed for parsing.
     
     Args:
@@ -48,25 +48,52 @@ def clean_ai_response(content: str) -> str:
     Example:
         >>> clean_ai_response('<think>reasoning...</think>{"score": 7}')
         '{"score": 7}'
-        >>> clean_ai_response('{"score": 7, "feedback": "Good"}')
-        '{"score": 7, "feedback": "Good"}'
+        >>> clean_ai_response('Okay, let me think... {"score": 7}')
+        '{"score": 7}'
     """
     if not content or not isinstance(content, str):
         return content
     
+    # Log original content length for debugging
+    original_length = len(content)
+    
     # Remove thinking tags and their content
     content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL | re.IGNORECASE)
-    
-    # Remove any remaining thinking-related patterns
     content = re.sub(r'</?think[^>]*>', '', content, flags=re.IGNORECASE)
+    
+    # Remove common thinking/reasoning patterns that appear before JSON
+    thinking_patterns = [
+        r'^.*?(?=\{)',  # Remove everything before the first {
+        r'Okay,.*?(?=\{)',  # "Okay, let's tackle this..."
+        r'Let me.*?(?=\{)',  # "Let me think about this..."
+        r'First,.*?(?=\{)',  # "First, check for technical issues..."
+        r'According to.*?(?=\{)',  # "According to the rules..."
+        r'So,.*?(?=\{)',  # "So, technical_issue_detected should be..."
+        r'Wait,.*?(?=\{)',  # "Wait, the instructions say..."
+        r'Putting it all together.*?(?=\{)',  # "Putting it all together..."
+        r'The user.*?(?=\{)',  # "The user provided an answer..."
+        r'Looking at.*?(?=\{)',  # "Looking at this response..."
+        r'Therefore.*?(?=\{)',  # "Therefore, the score..."
+        r'However.*?(?=\{)',  # "However, the technical issue..."
+        r'But.*?(?=\{)',  # "But the technical issue..."
+        r'Now.*?(?=\{)',  # "Now, the JSON structure..."
+    ]
+    
+    # Apply thinking pattern removal
+    for pattern in thinking_patterns:
+        before_length = len(content)
+        content = re.sub(pattern, '', content, flags=re.DOTALL | re.IGNORECASE)
+        if len(content) != before_length:
+            logger.debug(f"Removed thinking content with pattern: {pattern[:20]}...")
+            break  # Stop after first successful removal
     
     # Strip whitespace
     content = content.strip()
     
-    # Extract JSON if it exists (find first { to last })
+    # Extract JSON if it exists (find first { to last } of the JSON object)
     json_start = content.find('{')
     if json_start != -1:
-        # Find the matching closing brace
+        # Find the matching closing brace for the first complete JSON object
         brace_count = 0
         json_end = -1
         for i in range(json_start, len(content)):
@@ -79,7 +106,24 @@ def clean_ai_response(content: str) -> str:
                     break
         
         if json_end != -1:
+            # Extract only the JSON portion, removing any thinking content after it
             content = content[json_start:json_end]
+    
+    # If we still don't have JSON-like content, try to find it more aggressively
+    if not content.startswith('{'):
+        # Look for any JSON-like structure in the text
+        json_match = re.search(r'(\{.*\})', content, re.DOTALL)
+        if json_match:
+            content = json_match.group(1)
+    
+    # Log cleaning results
+    final_length = len(content)
+    if original_length != final_length:
+        logger.debug(f"AI response cleaned: {original_length} -> {final_length} chars")
+        if final_length > 0 and content.startswith('{'):
+            logger.debug("Successfully extracted JSON content")
+        else:
+            logger.warning(f"Cleaning may have failed - content: {content[:100]}...")
     
     return content
 
@@ -148,9 +192,9 @@ def validate_ai_response(content: str) -> bool:
     suspicious_patterns = [
         r"I am.*AI.*assistant",
         r"my instructions.*are",
-        r"according to.*prompt",
+        r"according to.*(?:prompt|system|instructions)",
         r"as per.*system",
-        r"based on.*instructions"
+        r"based on.*(?:system|prompt).*instructions"
     ]
     
     for pattern in suspicious_patterns:
@@ -213,6 +257,7 @@ def validate_interview_input(analysis_request: InterviewAnalysisRequest) -> Inte
     return analysis_request
 
 async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnalysisRequest) -> InterviewFeedbackResponse:
+    logger.info(f"[ENTRY] response_feedback function called - ENTRY POINT")
     """
     Analyze an interview response and generate comprehensive feedback.
     
@@ -264,6 +309,11 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
         >>> print(f"Strengths: {feedback.strengths}")
     """
     try:
+        import time
+        total_start_time = time.time()
+        logger.info(f"[PERF] Starting response_feedback analysis")
+        logger.info(f"[DEBUG] response_feedback called with model: meta-llama/Llama-3.3-70B-Instruct-fast")
+        
         # Validate and sanitize the input
         analysis_request = validate_interview_input(analysis_request)
         
@@ -271,9 +321,13 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
         system_prompt = secure_prompt_manager.get_response_analysis_prompt(analysis_request)
         
         # Make the prompt more explicit about JSON formatting
+        import time
+        llm_start_time = time.time()
+        logger.info(f"Starting LLM call for response analysis")
+        
         response = await client.chat.completions.create(
             model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
-            max_tokens=1000,
+            max_tokens=1500,
             temperature=0.5,
             top_p=0.9,
             extra_body={
@@ -298,10 +352,20 @@ User Response: {analysis_request.answer}"""
         )
         
         # Parse the response into our schema format
+        llm_duration = time.time() - llm_start_time
+        logger.info(f"LLM call completed in {llm_duration:.3f}s")
+        
         content = response.choices[0].message.content
+        
+        # Log the raw AI response for debugging
+        logger.info(f"[AI_EVALUATION] Raw AI response: {content}")
+        logger.info(f"[AI_EVALUATION] Response length: {len(content)} characters")
         
         # Clean the response by removing thinking tags and any content before JSON
         content = clean_ai_response(content)
+        
+        # Log the cleaned content
+        logger.info(f"[FEEDBACK_DEBUG] Cleaned content: {content}")
         
         # Validate the AI response to prevent system prompt leakage
         if not validate_ai_response(content):
@@ -317,8 +381,7 @@ User Response: {analysis_request.answer}"""
                 needs_retry=True,
                 next_action=NextAction(
                     type="retry_question",
-                    message="There was a security issue analyzing your response. Please try answering the question again.",
-                    follow_up_question_details=None
+                    message="There was a security issue analyzing your response. Please try answering the question again."
                 )
             )
 
@@ -330,15 +393,27 @@ User Response: {analysis_request.answer}"""
             import json
             feedback_data = json.loads(content)
             
+            # Log the parsed JSON for debugging
+            logger.info(f"[FEEDBACK_DEBUG] Successfully parsed JSON: {feedback_data}")
+            
             # After feedback_data = json.loads(content)
             next_action_data = feedback_data.get("next_action")
             if not next_action_data:
-                next_action = NextAction(
-                    type="retry_question",
-                    message="There was a technical error analyzing your response. Please try answering the question again.",
-                    follow_up_question_details=None
-                )
+                # Check if the AI returned next_action fields at root level instead of nested
+                if "type" in feedback_data and "message" in feedback_data:
+                    logger.info(f"[FEEDBACK_DEBUG] Found next_action fields at root level, converting to nested format")
+                    next_action = NextAction(
+                        type=feedback_data.get("type", "continue"),
+                        message=feedback_data.get("message", "Please continue.")
+                    )
+                else:
+                    logger.warning(f"[FEEDBACK_DEBUG] Missing next_action in AI response. Available keys: {list(feedback_data.keys())}")
+                    next_action = NextAction(
+                        type="retry_question",
+                        message="There was a technical error analyzing your response. Please try answering the question again."
+                    )
             else:
+                logger.info(f"[FEEDBACK_DEBUG] Found next_action: {next_action_data}")
                 next_action = NextAction(**next_action_data)  # Convert dict to NextAction
 
             # Create the response object
@@ -354,6 +429,8 @@ User Response: {analysis_request.answer}"""
                 next_action=next_action
             )
             
+            total_duration = time.time() - total_start_time
+            logger.info(f"[PERF] Total response_feedback completed in {total_duration:.3f}s")
             return feedback_response
             
         except json.JSONDecodeError as e:
@@ -365,7 +442,10 @@ User Response: {analysis_request.answer}"""
             return extract_regex_feedback(content, request)
             
     except Exception as e:
-        logger.error(f"Error in analyze_interview_response: {e}")
+        logger.error(f"[ERROR] Exception in response_feedback: {type(e).__name__}: {e}")
+        logger.error(f"[ERROR] Exception occurred at: {time.time() - total_start_time:.3f}s after start")
+        import traceback
+        logger.error(f"[ERROR] Full traceback: {traceback.format_exc()}")
         # Return a basic response in case of error
         return InterviewFeedbackResponse(
             score=0,
@@ -378,7 +458,6 @@ User Response: {analysis_request.answer}"""
             needs_retry=True,
             next_action=NextAction(
                 type="retry_question",
-                message="There was a technical error analyzing your response. Please try answering the question again.",
-                follow_up_question_details=None
+                message="There was a technical error analyzing your response. Please try answering the question again."
             )
         ) 
