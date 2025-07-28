@@ -27,6 +27,8 @@ async def handle_retry_action(
     reset_question_attempts_func
 ) -> str:
     """Handle retry actions when technical issues are detected."""
+    logger.debug(f"[RETRY] Session {session_id}: retry_attempts={session_state.get('retry_attempts', 0)}")
+    
     if session_state["retry_attempts"] < 1:
         session_state["retry_attempts"] += 1
         retry_message = analysis_response.next_action.message
@@ -48,44 +50,6 @@ async def handle_retry_action(
         )
 
 
-async def handle_follow_up_action(
-    session_id: str,
-    analysis_response,
-    feedback_text: str,
-    session_state: Dict,
-    session_questions: Dict[str, List[str]],
-    current_question_index: Dict[str, int],
-    add_to_context_func,
-    advance_to_next_question_func,
-    get_current_question_func,
-    reset_question_attempts_func
-) -> str:
-    """Handle follow-up actions when engagement check is needed."""
-    if session_state["follow_up_attempts"] < 1:
-        session_state["follow_up_attempts"] += 1
-        follow_up_message = analysis_response.next_action.message
-        
-        # Optionally include follow-up details if present
-        if analysis_response.next_action.follow_up_question_details:
-            details = analysis_response.next_action.follow_up_question_details
-            follow_up_message += f" {details.original_question}"
-        
-        add_to_context_func(session_id, "assistant", follow_up_message)
-        logger.info(f"Feedback and follow-up message: {feedback_text + follow_up_message}")
-        return feedback_text + follow_up_message
-    else:
-        # Max follow-ups reached, move to next question
-        return await advance_to_next_question_with_message(
-            session_id,
-            feedback_text + "Let's move on to the next question. ",
-            session_state,
-            session_questions,
-            current_question_index,
-            add_to_context_func,
-            advance_to_next_question_func,
-            get_current_question_func,
-            reset_question_attempts_func
-        )
 
 
 async def handle_exit_action(
@@ -117,6 +81,7 @@ async def handle_continue_action(
     reset_question_attempts_func
 ) -> str:
     """Handle continue actions to advance to the next question."""
+    
     advance_to_next_question_func(session_id, current_question_index)
     
     # Check if more questions remain
@@ -133,7 +98,8 @@ async def handle_continue_action(
         # Return structured response with next question data
         response_data = {
             "type": "next_question",
-            "feedback": feedback_text + analysis_response.next_action.message,
+            "feedback": feedback_text,
+            "next_action_message": analysis_response.next_action.message,
             "next_question": {
                 "question": next_question,
                 "questionNumber": current_index + 1,
@@ -194,7 +160,5 @@ async def advance_to_next_question_with_message(
 
 
 def reset_question_attempts(session_state: Dict) -> None:
-    """Reset retry and follow-up attempts for a new question."""
+    """Reset retry attempts for a new question."""
     session_state["retry_attempts"] = 0
-    session_state["follow_up_attempts"] = 0
-    session_state["question_answered"] = False 
