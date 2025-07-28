@@ -90,7 +90,6 @@ async def process_user_answer(
     analysis_response = await analyze_user_response(
         session_id, user_message, session_state, session_questions, current_question_index, client
     )
-    logger.info(f"[FLOW_DEBUG] analyze_user_response() completed for session {session_id}")
     
     # Generate feedback text
     feedback_text = format_feedback_func(analysis_response)
@@ -134,8 +133,6 @@ async def analyze_user_response(
         answer=user_message
     )
     
-    logger.info(f"[FLOW_DEBUG] Creating TextAnswersService and calling analyze_response() for session {session_id}")
     text_answers_service = TextAnswersService(client)
     result = await text_answers_service.analyze_response(analysis_request)
-    logger.info(f"[FLOW_DEBUG] TextAnswersService.analyze_response() returned result for session {session_id}")
     return result 
