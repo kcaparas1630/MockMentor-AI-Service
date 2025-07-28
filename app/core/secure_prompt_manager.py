@@ -150,7 +150,7 @@ Return ONLY valid JSON with this exact structure - NO thought process, explanati
   "technical_issue_detected": false,
   "needs_retry": false,
   "next_action": {{
-    "type": "continue",
+    "type": "continue" | "suggest_exit" | "retry_question",
     "message": "Your message to the user for the next turn"
   }}
 }}
