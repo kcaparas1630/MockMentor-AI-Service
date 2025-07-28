@@ -62,9 +62,6 @@ async def process_user_answer(
     if "session_metadata" not in session_state:
         raise BadRequest(f"Session {session_id} metadata not found. Session must be properly initialized.")
     
-    # Set question_answered state immediately when user submits answer
-    session_state["question_answered"] = True
-    
     # Get current question and save the answer to database
     current_question = get_current_question(session_id, session_questions, current_question_index)
     current_index = current_question_index.get(session_id, 0)
@@ -89,9 +86,11 @@ async def process_user_answer(
         logger.error(f"Failed to save answer: {save_result['error']}")
     
     # Analyze the user's response
+    logger.info(f"[FLOW_DEBUG] About to call analyze_user_response() for session {session_id}")
     analysis_response = await analyze_user_response(
         session_id, user_message, session_state, session_questions, current_question_index, client
     )
+    logger.info(f"[FLOW_DEBUG] analyze_user_response() completed for session {session_id}")
     
     # Generate feedback text
     feedback_text = format_feedback_func(analysis_response)
@@ -135,5 +134,8 @@ async def analyze_user_response(
         answer=user_message
     )
     
+    logger.info(f"[FLOW_DEBUG] Creating TextAnswersService and calling analyze_response() for session {session_id}")
     text_answers_service = TextAnswersService(client)
-    return await text_answers_service.analyze_response(analysis_request) 
+    result = await text_answers_service.analyze_response(analysis_request)
+    logger.info(f"[FLOW_DEBUG] TextAnswersService.analyze_response() returned result for session {session_id}")
+    return result 
