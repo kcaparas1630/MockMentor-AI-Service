@@ -15,7 +15,7 @@ Author: @kcaparas1630
 """
 
 # from pymongo import MongoClient
-from motor.motor_asyncio import AsyncIOMotorCLient
+from motor.motor_asyncio import AsyncIOMotorClient
 
 import os
 from dotenv import load_dotenv
@@ -25,7 +25,7 @@ from typing import Dict, Any, Optional
 
 load_dotenv()
 
-_client = Optional[AsyncIOMotorCLient]
+_client = Optional[AsyncIOMotorClient]
 async def get_db_client():
     """
     Get the MongoDB client for async operations.
@@ -35,7 +35,7 @@ async def get_db_client():
     """
     global _client
     if _client is None:
-        _client = AsyncIOMotorCLient(os.getenv("MONGODB_URI"))
+        _client = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
     return _client.MockMentor
 
 async def save_answer(session_id: str, question: str, answer: str, question_index: int, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
