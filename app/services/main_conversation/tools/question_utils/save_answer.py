@@ -5,7 +5,7 @@ This module provides functionality to save user answers to the MongoDB database.
 It handles storing interview responses with session context and metadata.
 
 Dependencies:
-- pymongo: For MongoDB interactions.
+- motor: For async MongoDB interactions.
 - os: For environment variable access.
 - dotenv: For loading environment variables from a .env file.
 - loguru: For logging.
@@ -14,29 +14,19 @@ Dependencies:
 Author: @kcaparas1630
 """
 
-# from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
-
 import os
 from dotenv import load_dotenv
 from loguru import logger
-from datetime import datetime
-from typing import Dict, Any, Optional
+from datetime import datetime, timezone
+from typing import Dict, Any
 
 load_dotenv()
 
-_client = Optional[AsyncIOMotorClient]
-async def get_db_client():
-    """
-    Get the MongoDB client for async operations.
-    
-    Returns:
-        AsyncIOMotorClient: The MongoDB client instance.
-    """
-    global _client
-    if _client is None:
-        _client = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
-    return _client.MockMentor
+# Initialize async MongoDB client (similar to your working sync version)
+client = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
+db = client.MockMentor
+answers_collection = db.Answer
 
 async def save_answer(session_id: str, question: str, answer: str, question_index: int, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
     """
@@ -59,13 +49,12 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
             "question": question,
             "answer": answer,
             "questionIndex": question_index,
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc),
             "metadata": metadata or {}
         }
-        # Get the MongoDB client
-        db = await get_db_client()
-        # Insert the answer document
-        result = db.Answer.insert_one(answer_document)
+        
+        # Insert the answer document (direct access like your working version)
+        result = await answers_collection.insert_one(answer_document)
         
         logger.info(f"Saved answer for session {session_id}, question {question_index}")
         
@@ -95,12 +84,12 @@ async def get_session_answers(session_id: str) -> Dict[str, Any]:
     """
     
     try:
-        # Get the MongoDB client
-        db = await get_db_client()
-        cursor = db.Answer.find(
+        # Use direct collection access like your working version
+        cursor = answers_collection.find(
             {"sessionId": session_id},
             {"_id": 0}  # Exclude MongoDB _id field
         ).sort("questionIndex", 1)  # Sort by question index
+        
         answers = await cursor.to_list(length=None)
         
         logger.info(f"Retrieved {len(answers)} answers for session {session_id}")
