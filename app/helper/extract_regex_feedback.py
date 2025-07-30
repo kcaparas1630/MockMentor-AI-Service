@@ -21,28 +21,25 @@ Author: @kcaparas1630
 """
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.constants.regex_patterns import REGEX_PATTERNS
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, FollowUpQuestionDetails, NextAction
+from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, NextAction
 import json
 from loguru import logger
 
 # Extract feedback from the content using regex patterns
 def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
+    # Log that we're in the regex fallback mode
+    logger.warning(f"[REGEX_FALLBACK] Attempting regex extraction for malformed JSON. Content: {content}")
+    
     try:
         # Parse the entire content as a JSON object
         json_data = json.loads(content)
 
-        # Handle the nested next_action and its details
+        # Handle the nested next_action
         next_action_data = json_data.get("next_action", {})
-        follow_up_details_data = next_action_data.get("follow_up_question_details")
-
-        follow_up_details = None
-        if follow_up_details_data:
-            follow_up_details = FollowUpQuestionDetails(**follow_up_details_data)
 
         next_action = NextAction(
             type=next_action_data.get("type", "continue"), # Default to 'continue' if not present
-            message=next_action_data.get("message", "Thank you for your response."),
-            follow_up_question_details=follow_up_details
+            message=next_action_data.get("message", "Thank you for your response.")
         )
 
         # Create the InterviewFeedbackResponse object
@@ -59,8 +56,10 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
         )
         return feedback_response
 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         # Fallback: extract only simple fields using regex, always provide default next_action
+        logger.error(f"[REGEX_FALLBACK] JSON parsing failed in regex extraction: {e}")
+        logger.error(f"[REGEX_FALLBACK] Falling back to regex pattern matching")
         def extract_list(pattern, text):
             match = REGEX_PATTERNS[pattern].search(text)
             if match:
@@ -103,8 +102,7 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             needs_retry=needs_retry,
             next_action=NextAction(
                 type="continue",
-                message="There was an issue processing your last response. Let's try again or move on.",
-                follow_up_question_details=None
+                message="There was an issue processing your last response. Let's try again or move on."
             )
         )
     except Exception as e:

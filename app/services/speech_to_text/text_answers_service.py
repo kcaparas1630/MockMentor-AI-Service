@@ -101,4 +101,5 @@ class TextAnswersService:
             >>> print(f"Score: {feedback.score}/10")
             >>> print(f"Feedback: {feedback.feedback}")
         """
-        return await response_feedback(self.client, analysis_request)
+        result = await response_feedback(self.client, analysis_request)
+        return result

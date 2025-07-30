@@ -213,7 +213,6 @@ class MainConversationService:
                 "current_question_index": 0,
                 "waiting_for_answer": False,
                 "retry_attempts": 0,  # Track retry attempts for current question
-                "follow_up_attempts": 0,  # Track follow-up attempts for current question
                 "session_metadata": {
                     "user_name": interview_session.user_name,
                     "jobRole": interview_session.jobRole,

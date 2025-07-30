@@ -150,12 +150,12 @@ Return ONLY valid JSON with this exact structure - NO thought process, explanati
   "technical_issue_detected": false,
   "needs_retry": false,
   "next_action": {{
-    "type": "continue",
+    "type": "continue" | "retry_question",
     "message": "Your message to the user for the next turn"
   }}
 }}
 
-**CRITICAL: When technical_issue_detected=true, needs_retry=true, or next_action.type="suggest_exit", use empty values:
+**CRITICAL: When technical_issue_detected=true or needs_retry=true, use empty values:
 "feedback": ""
 "improvements": []
 "tips": []
@@ -172,18 +172,12 @@ Set "technical_issue_detected": true and "needs_retry": true when detecting:
 Examples: "I implemented the API..." ✓ | "Working with the database to..." ✓ | "The results showed..." ✓
 </technical_detection>
 
-<engagement_check>
-Set "next_action.type": "suggest_exit" after TWO instances of:
-- Answers like "Maybe?", "I don't know", "I'd rather not", "end the interview", "end the session", "
-- Malicious responses toward interviewer
-- Complete disengagement patterns
-</engagement_check>
 
 <scoring_rules>
 **1-2**: No relevant content, off-topic, or completely inadequate
-- Action: Ask if they want to continue, if yes → suggest_exit
-**3-4**: Minimal content, lacks depth, vague answers, poor structure
-- Action: Move to next question (NO follow-ups)
+- Action: Move to next question with feedback
+**3-4**: Minimal content, lacks depth, vague answers, poor structure  
+- Action: Move to next question with feedback
 **5-6**: Some relevant content but significant gaps, lacks examples/results
 **7-8**: Good responses with relevant examples, clear structure
 **9-10**: Comprehensive, well-structured, quantifiable results, exceptional communication
