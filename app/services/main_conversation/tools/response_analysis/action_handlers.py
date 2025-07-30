@@ -129,7 +129,7 @@ async def handle_continue_action(
 
 async def advance_to_next_question_with_message(
     session_id: str,
-    prefix_message: str,
+    feedback_text: str,
     session_state: Dict,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
@@ -143,19 +143,40 @@ async def advance_to_next_question_with_message(
     
     if current_question_index[session_id] < len(session_questions[session_id]):
         next_question = get_current_question_func(session_id, session_questions, current_question_index)
-        next_message = f" {next_question} Take your time, and remember to be specific about your role and the impact you made."
+        next_message = f" {next_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
+        current_index = current_question_index[session_id]
+        total_questions = len(session_questions[session_id])
         add_to_context_func(session_id, "assistant", next_message)
         session_state["waiting_for_answer"] = True
         reset_question_attempts_func(session_state)
-        logger.info(f"Feedback and next question message: {prefix_message + next_message}")
-        return prefix_message + next_message
+        logger.info(f"Feedback and next question message: {feedback_text + next_message}")
+        
+        # Return structured response with next question data
+        response_data = {
+            "type": "next_question",
+            "feedback": feedback_text,
+            "next_action_message": "", # No specific next action message
+            "next_question": {
+                "question": next_question,
+                "questionNumber": current_index + 1,
+                "totalQuestions": total_questions,
+                "questionIndex": current_index
+            },
+            "message": next_message
+        }
+        return f"NEXT_QUESTION:{json.dumps(response_data)}"
+    # If no more questions, end the interview
     else:
         session_state["waiting_for_answer"] = False
         end_message = "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
-        logger.info(f"Feedback and end message: {prefix_message + end_message}")
-        return prefix_message + end_message
-
+        # Return structured response for interview completion
+        response_data = {
+            "type": "interview_complete",
+            "feedback": feedback_text + end_message,
+            "message": end_message
+        }
+        return f"INTERVIEW_COMPLETE:{json.dumps(response_data)}"
 
 def reset_question_attempts(session_state: Dict) -> None:
     """Reset retry attempts for a new question."""
