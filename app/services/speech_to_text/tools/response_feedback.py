@@ -27,6 +27,7 @@ from app.helper.extract_regex_feedback import extract_regex_feedback
 from app.core.secure_prompt_manager import secure_prompt_manager, sanitize_text
 import logging
 import re
+import time
 
 
 logger = logging.getLogger(__name__)
@@ -309,10 +310,8 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
         >>> print(f"Strengths: {feedback.strengths}")
     """
     try:
-        import time
+       
         total_start_time = time.time()
-        logger.info(f"[PERF] Starting response_feedback analysis")
-        logger.info(f"[DEBUG] response_feedback called with model: meta-llama/Llama-3.3-70B-Instruct-fast")
         
         # Validate and sanitize the input
         analysis_request = validate_interview_input(analysis_request)
@@ -320,10 +319,7 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
         # Use secure prompt manager to generate safe prompt
         system_prompt = secure_prompt_manager.get_response_analysis_prompt(analysis_request)
         
-        # Make the prompt more explicit about JSON formatting
-        import time
         llm_start_time = time.time()
-        logger.info(f"Starting LLM call for response analysis")
         
         response = await client.chat.completions.create(
             model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
