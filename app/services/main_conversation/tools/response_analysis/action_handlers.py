@@ -13,6 +13,7 @@ Author: @kcaparas1630
 
 from typing import Dict, List
 from loguru import logger
+import json
 
 async def handle_retry_action(
     session_id: str,
@@ -109,8 +110,6 @@ async def handle_continue_action(
             "message": next_message
         }
         
-        # Return JSON-like string that can be parsed by WebSocket handler
-        import json
         return f"NEXT_QUESTION:{json.dumps(response_data)}"
     else:
         session_state["waiting_for_answer"] = False
@@ -125,7 +124,6 @@ async def handle_continue_action(
             "message": end_message
         }
         
-        import json
         return f"INTERVIEW_COMPLETE:{json.dumps(response_data)}"
 
 
