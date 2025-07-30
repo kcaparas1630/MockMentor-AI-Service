@@ -53,21 +53,6 @@ async def handle_retry_action(
 
 
 
-async def handle_exit_action(
-    session_id: str,
-    analysis_response,
-    feedback_text: str,
-    session_state: Dict,
-    add_to_context_func
-) -> str:
-    """Handle exit actions when the interview should end."""
-    exit_message = analysis_response.next_action.message
-    add_to_context_func(session_id, "assistant", exit_message)
-    session_state["waiting_for_answer"] = False
-    logger.info(f"Feedback and exit message: {feedback_text + exit_message}")
-    # Return a special marker to indicate session should end
-    return "SESSION_END:" + feedback_text + exit_message
-
 
 async def handle_continue_action(
     session_id: str,

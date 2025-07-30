@@ -116,11 +116,7 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
 async def send_response(websocket: WebSocket, response: str, session_state: dict = None):
     """Send AI response and handle session end if needed."""
     try:
-        if response.startswith("SESSION_END:"):
-            actual_message = response[12:]
-            await send_websocket_message(websocket, "message", actual_message, session_state)
-            await websocket.close(code=1000, reason="Session terminated by AI")
-        elif response.startswith("NEXT_QUESTION:"):
+        if response.startswith("NEXT_QUESTION:"):
             # Parse and send structured next question data
             import json
             try: 

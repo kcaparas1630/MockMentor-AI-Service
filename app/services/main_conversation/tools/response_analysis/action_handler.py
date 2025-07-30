@@ -15,7 +15,6 @@ from typing import Dict
 from loguru import logger
 from .action_handlers import (
     handle_retry_action,
-    handle_exit_action,
     handle_continue_action
 )
 from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
@@ -76,12 +75,6 @@ async def handle_next_action(
             advance_to_next_question_func, get_current_question_func, reset_question_attempts_func
         )
     
-    # Handle suggest_exit
-    if analysis_response.next_action.type == "suggest_exit":
-        logger.info("Suggest exit action detected.")
-        return await handle_exit_action(
-            session_id, analysis_response, feedback_text, session_state, add_to_context_func
-        )
     
     # Handle continue (advance to next question)
     if analysis_response.next_action.type == "continue":
