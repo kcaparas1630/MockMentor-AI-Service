@@ -123,8 +123,13 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
         elif response.startswith("NEXT_QUESTION:"):
             # Parse and send structured next question data
             import json
-            data_json = response[14:]  # Remove "NEXT_QUESTION:" prefix
-            response_data = json.loads(data_json)
+            try: 
+                data_json = response[14:]  # Remove "NEXT_QUESTION:" prefix
+                response_data = json.loads(data_json)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse NEXT_QUESTION data: {e}")
+                await send_error_message(websocket, "Invalid NEXT_QUESTION data format")
+                return
             
             # Send single message with feedback and next question data combined
             next_question_data = {
@@ -151,8 +156,13 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
         elif response.startswith("INTERVIEW_COMPLETE:"):
             # Parse and send interview completion data
             import json
-            data_json = response[19:]  # Remove "INTERVIEW_COMPLETE:" prefix
-            response_data = json.loads(data_json)
+            try:
+                data_json = response[19:]  # Remove "INTERVIEW_COMPLETE:" prefix
+                response_data = json.loads(data_json)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse INTERVIEW_COMPLETE data: {e}")
+                await send_error_message(websocket, "Invalid INTERVIEW_COMPLETE data format")
+                return
             
             await websocket.send_json({
                 "type": "interview_complete",
