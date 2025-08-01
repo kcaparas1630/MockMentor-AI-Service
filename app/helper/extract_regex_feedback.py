@@ -47,7 +47,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             score=json_data.get("score", 5), # Default to 5 if score is missing
             feedback=json_data.get("feedback", "No specific feedback provided."),
             strengths=json_data.get("strengths", []),
-            improvements=json_data.get("improvements", []),
             tips=json_data.get("tips", []),
             engagement_check=json_data.get("engagement_check", False),
             technical_issue_detected=json_data.get("technical_issue_detected", False),
@@ -85,7 +84,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
         score = extract_int('score', content)
         feedback = extract_str('feedback', content)
         strengths = extract_list('strengths', content)
-        improvements = extract_list('improvements', content)
         tips = extract_list('tips', content)
         engagement_check = extract_bool('engagement_check', content)
         technical_issue_detected = extract_bool('technical_issue_detected', content)
@@ -95,7 +93,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             score=score,
             feedback=feedback,
             strengths=strengths,
-            improvements=improvements,
             tips=tips,
             engagement_check=engagement_check,
             technical_issue_detected=technical_issue_detected,
