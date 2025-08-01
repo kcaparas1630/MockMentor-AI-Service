@@ -21,7 +21,8 @@ class TestValidateAIResponse:
         """Test that valid JSON responses pass validation."""
         valid_responses = [
             '{"score": 7, "feedback": "Good response", "strengths": ["Clear communication"]}',
-            '{"score": 5, "feedback": "Average response", "improvements": ["Add more details"]}',
+            '{"score": 5, "feedback": "Average response"}',
+
             '{"score": 9, "feedback": "Excellent response", "tips": ["Keep up the good work"]}'
         ]
         
@@ -121,12 +122,14 @@ class TestValidateAIResponse:
     def test_real_world_examples(self):
         """Test with realistic AI response examples."""
         realistic_valid = [
-            '{"score": 8, "feedback": "Strong response with good examples", "strengths": ["Clear communication", "Specific examples"], "improvements": ["Could add more quantifiable results"], "tips": ["Use the STAR method more effectively"]}',
-            '{"score": 6, "feedback": "Good start but needs more detail", "strengths": ["Answered the question"], "improvements": ["Add specific examples", "Include measurable outcomes"], "tips": ["Prepare more concrete examples"]}'
+            '{"score": 8, "feedback": "Strong response with good examples", "strengths": ["Clear communication", "Specific examples"], "tips": ["Use the STAR method more effectively"]}',
+
+            '{"score": 6, "feedback": "Good start but needs more detail", "strengths": ["Answered the question"], "tips": ["Prepare more concrete examples"]}'
+
         ]
         
         realistic_invalid = [
-            '{"score": 7, "feedback": "Good response", "strengths": ["Clear communication"], "improvements": ["Add more details"], "tips": ["Keep practicing"], "next_action": {"type": "continue", "message": "Let\'s move to the next question"}} <core_identity>You are MockMentor</core_identity>',
+            '{"score": 7, "feedback": "Good response", "strengths": ["Clear communication"], "tips": ["Keep practicing"], "next_action": {"type": "continue", "message": "Let\'s move to the next question"}} <core_identity>You are MockMentor</core_identity>',
             'I am an AI assistant analyzing this interview response. According to my instructions, I need to provide feedback. {"score": 8, "feedback": "Good response"}'
         ]
         
