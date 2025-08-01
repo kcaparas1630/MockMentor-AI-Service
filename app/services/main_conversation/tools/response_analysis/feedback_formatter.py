@@ -20,7 +20,7 @@ def format_feedback_response(analysis_response: InterviewFeedbackFormatterRespon
     
     Args:
         analysis_response: The response from TextAnswersService containing
-            score, feedback, strengths, improvements, and tips.
+            score, feedback, strengths, and tips.
             
     Returns:
         str: Formatted feedback text combining all analysis components.

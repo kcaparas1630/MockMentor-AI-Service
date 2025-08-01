@@ -263,8 +263,7 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
     Analyze an interview response and generate comprehensive feedback.
     
     This function uses AI to analyze a candidate's interview response and provide
-    detailed feedback including numerical scoring, strengths identification, areas
-    for improvement, and actionable tips. The analysis is tailored to the specific
+    detailed feedback including numerical scoring, strengths identification, and actionable tips. The analysis is tailored to the specific
     job role, level, and question type.
     
     The function implements a robust error handling strategy with fallback mechanisms:
@@ -467,7 +466,6 @@ User Response: {analysis_request.answer}"""
             score=0,
             feedback="Unable to analyze the response due to a technical error.",
             strengths=["N/A"],
-            improvements=["N/A"],
             tips=["Please try again later."],
             engagement_check=False,
             technical_issue_detected=True,

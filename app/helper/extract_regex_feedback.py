@@ -108,7 +108,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             score=5,
             feedback="An unexpected error occurred.",
             strengths=[],
-            improvements=[],
             tips=[],
             engagement_check=False,
             technical_issue_detected=False,
