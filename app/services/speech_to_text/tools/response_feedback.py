@@ -4,7 +4,7 @@ Response Feedback Analysis Tool Module
 This module provides the core functionality for analyzing interview responses and
 generating comprehensive feedback using AI. It implements the main analysis logic
 that evaluates candidate responses based on job criteria and provides structured
-feedback including scores, strengths, improvements, and actionable tips.
+feedback including scores, strengths, and actionable tips.
 
 The module contains a single async function that orchestrates the complete analysis
 workflow, including AI prompt generation, response parsing, and fallback error
@@ -288,7 +288,6 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
             - score: Integer score from 1-10 representing response quality
             - feedback: Brief summary of the response analysis
             - strengths: List of positive aspects identified in the response
-            - improvements: List of areas where the response could be enhanced
             - tips: List of actionable advice for improvement
             
     Raises:
@@ -322,9 +321,9 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
         llm_start_time = time.time()
         
         response = await client.chat.completions.create(
-            model="nvidia/Llama-3_1-Nemotron-Ultra-253B-v1",
-            max_tokens=1500,
-            temperature=0.5,
+            model="meta-llama/Meta-Llama-3.1-8B-Instruct-fast",
+            max_tokens=1000,
+            temperature=0.1,
             top_p=0.9,
             extra_body={
                 "top_k": 50
@@ -356,12 +355,21 @@ User Response: {analysis_request.answer}"""
         # Log the raw AI response for debugging
         logger.info(f"[AI_EVALUATION] Raw AI response: {content}")
         logger.info(f"[AI_EVALUATION] Response length: {len(content)} characters")
-        
-        # Clean the response by removing thinking tags and any content before JSON
-        content = clean_ai_response(content)
+        # Check if content is already valid JSON before cleaning
+        try:
+            import json
+            json.loads(content.strip())
+            print(f"🔥 CONTENT IS ALREADY VALID JSON - SKIPPING CLEANING")
+            # Content is already valid JSON, just strip whitespace
+            content = content.strip()
+        except json.JSONDecodeError:
+            print(f"🔥 CONTENT NEEDS CLEANING - APPLYING CLEAN_AI_RESPONSE")
+            # Clean the response by removing thinking tags and any content before JSON
+            content = clean_ai_response(content)
+            print(f"🔥 AFTER CLEANING: {content}")
         
         # Log the cleaned content
-        logger.info(f"[FEEDBACK_DEBUG] Cleaned content: {content}")
+        logger.info(f"[FEEDBACK_DEBUG] Final content: {content}")
         
         # Validate the AI response to prevent system prompt leakage
         if not validate_ai_response(content):
@@ -370,7 +378,6 @@ User Response: {analysis_request.answer}"""
                 score=0,
                 feedback="Unable to analyze the response due to a security issue.",
                 strengths=["N/A"],
-                improvements=["N/A"],
                 tips=["Please try again later."],
                 engagement_check=False,
                 technical_issue_detected=True,
@@ -391,6 +398,15 @@ User Response: {analysis_request.answer}"""
             
             # Log the parsed JSON for debugging
             logger.info(f"[FEEDBACK_DEBUG] Successfully parsed JSON: {feedback_data}")
+            print(f"🔥 PARSED JSON KEYS: {list(feedback_data.keys()) if isinstance(feedback_data, dict) else 'NOT A DICT'}")
+            print(f"🔥 PARSED JSON TYPE: {type(feedback_data)}")
+            print(f"🔥 PARSED JSON CONTENT: {feedback_data}")
+            
+            # Check specific keys
+            print(f"🔥 JSON HAS 'score': {'score' in feedback_data if isinstance(feedback_data, dict) else False}")
+            print(f"🔥 JSON HAS 'feedback': {'feedback' in feedback_data if isinstance(feedback_data, dict) else False}")
+            print(f"🔥 JSON HAS 'strengths': {'strengths' in feedback_data if isinstance(feedback_data, dict) else False}")
+            print(f"🔥 JSON HAS 'tips': {'tips' in feedback_data if isinstance(feedback_data, dict) else False}")
             
             # After feedback_data = json.loads(content)
             next_action_data = feedback_data.get("next_action")
@@ -417,13 +433,17 @@ User Response: {analysis_request.answer}"""
                 score=feedback_data.get("score", 0),
                 feedback=feedback_data.get("feedback", ""),
                 strengths=feedback_data.get("strengths", []),
-                improvements=feedback_data.get("improvements", []),
                 tips=feedback_data.get("tips", []),
                 engagement_check=feedback_data.get("engagement_check", False),
                 technical_issue_detected=feedback_data.get("technical_issue_detected", False),
                 needs_retry=feedback_data.get("needs_retry", False),
                 next_action=next_action
             )
+            
+            print(f"🔥 CREATED FEEDBACK_RESPONSE - score: {feedback_response.score}")
+            print(f"🔥 CREATED FEEDBACK_RESPONSE - feedback: {feedback_response.feedback}")
+            print(f"🔥 CREATED FEEDBACK_RESPONSE - strengths: {feedback_response.strengths}")
+            print(f"🔥 CREATED FEEDBACK_RESPONSE - tips: {feedback_response.tips}")
             
             total_duration = time.time() - total_start_time
             logger.info(f"[PERF] Total response_feedback completed in {total_duration:.3f}s")
