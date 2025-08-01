@@ -81,7 +81,6 @@ class TextAnswersService:
                 - score: Integer score from 1-10
                 - feedback: Brief summary of the response
                 - strengths: List of positive aspects identified
-                - improvements: List of areas for improvement
                 - tips: List of actionable advice
                 
         Raises:

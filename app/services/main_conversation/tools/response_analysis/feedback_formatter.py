@@ -6,13 +6,12 @@ into readable feedback text for users. It converts structured analysis data into
 natural language feedback.
 
 Dependencies:
-- app.services.main_conversation.tools.context_utils.get_feedback_opening_line: For feedback opening lines.
 
 Author: @kcaparas1630
 """
 
-from app.services.main_conversation.tools.context_utils.get_feedback_opening_line import get_feedback_opening_line
 from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackFormatterResponse
+from app.services.main_conversation.tools.context_utils.get_feedback_opening_line import get_feedback_opening_line
 
 
 def format_feedback_response(analysis_response: InterviewFeedbackFormatterResponse) -> str:
@@ -21,7 +20,7 @@ def format_feedback_response(analysis_response: InterviewFeedbackFormatterRespon
     
     Args:
         analysis_response: The response from TextAnswersService containing
-            score, feedback, strengths, improvements, and tips.
+            score, feedback, strengths, and tips.
             
     Returns:
         str: Formatted feedback text combining all analysis components.
@@ -30,14 +29,17 @@ def format_feedback_response(analysis_response: InterviewFeedbackFormatterRespon
         >>> response = format_feedback_response(analysis_response)
         >>> print(response)  # "Great job! Your answer was comprehensive..."
     """
+    # Generate opening line based on score
+    opening_line = get_feedback_opening_line(analysis_response.score)
+    
+    # Format strengths 
     strengths_text = "Here's what you did well: " + ", ".join(analysis_response.strengths) if analysis_response.strengths else ""
-    improvements_text = "Areas for improvement: " + ", ".join(analysis_response.improvements) if analysis_response.improvements else ""
+    
+    # Format tips 
     tips_text = "Tips for next time: " + ", ".join(analysis_response.tips) if analysis_response.tips else ""
 
-    return (
-        f"{get_feedback_opening_line(analysis_response.score)}"
-        f"{analysis_response.feedback} "
-        f"{strengths_text}. " if strengths_text else ""
-        f"{improvements_text}. " if improvements_text else ""
-        f"{tips_text}." if tips_text else ""
-    )
+    # Combine all parts with natural flow
+    parts = [opening_line, analysis_response.feedback, strengths_text, tips_text]
+    formatted_result = " ".join(part.strip() for part in parts if part.strip())
+    
+    return formatted_result

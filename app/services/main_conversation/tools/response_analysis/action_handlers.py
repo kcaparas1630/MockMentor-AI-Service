@@ -47,12 +47,9 @@ async def handle_retry_action(
             add_to_context_func,
             advance_to_next_question_func,
             get_current_question_func,
-            reset_question_attempts_func
+            reset_question_attempts_func,
+            analysis_response
         )
-
-
-
-
 
 async def handle_continue_action(
     session_id: str,
@@ -84,7 +81,7 @@ async def handle_continue_action(
         # Return structured response with next question data
         response_data = {
             "type": "next_question",
-            "feedback": feedback_text,
+            "feedback_formatted": feedback_text,
             "next_action_message": analysis_response.next_action.message,
             "next_question": {
                 "question": next_question,
@@ -98,7 +95,7 @@ async def handle_continue_action(
         return f"NEXT_QUESTION:{json.dumps(response_data)}"
     else:
         session_state["waiting_for_answer"] = False
-        end_message = analysis_response.next_action.message + "That's the end of the interview. Great job!"
+        end_message = "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
         logger.info(f"Feedback and end message: {feedback_text + end_message}")
         
@@ -121,7 +118,8 @@ async def advance_to_next_question_with_message(
     add_to_context_func,
     advance_to_next_question_func,
     get_current_question_func,
-    reset_question_attempts_func
+    reset_question_attempts_func,
+    analysis_response=None
 ) -> str:
     """Helper method to advance to next question with a custom prefix message."""
     advance_to_next_question_func(session_id, current_question_index)
@@ -139,8 +137,8 @@ async def advance_to_next_question_with_message(
         # Return structured response with next question data
         response_data = {
             "type": "next_question",
-            "feedback": feedback_text,
-            "next_action_message": "", # No specific next action message
+            "feedback_formatted": feedback_text,
+            "next_action_message": analysis_response.next_action.message if analysis_response else "",
             "next_question": {
                 "question": next_question,
                 "questionNumber": current_index + 1,
