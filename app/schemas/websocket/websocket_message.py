@@ -21,6 +21,7 @@ class WebSocketMessage(BaseModel):
     content: str
     state: Optional[Dict[str, Any]] = None
     next_question: Optional[Dict[str, Any]] = None
+    timeStamp: Optional[str] = None
 
 # Model for user messages
 class WebSocketUserMessage(BaseModel):
