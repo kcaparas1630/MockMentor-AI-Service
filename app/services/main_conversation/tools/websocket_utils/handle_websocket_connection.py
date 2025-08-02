@@ -34,24 +34,26 @@ from app.services.transcription.transcriber import TranscriberService
 from app.errors.exceptions import InternalServerError
 from app.services.transcription.audio_buffer import IncrementalAudioBuffer
 import asyncio
-import base64
 from typing import Optional
 import time
 
-async def send_websocket_message(websocket: WebSocket, message_type: str, content: str, state: dict = None, next_question: dict = None):
-    """Send a WebSocket message with consistent formatting."""
-    await websocket.send_json(WebSocketMessage(
-        type=message_type,
-        content=content,
-        state=state,
-        next_question=next_question
-    ).model_dump())
+async def send_websocket_message(websocket: WebSocket, message_type: str, content: str,       
+  state: dict = None, next_question: dict = None):
+      """Send a WebSocket message with consistent formatting."""
+      await websocket.send_json(WebSocketMessage(
+          type=message_type,
+          content=content,
+          state=state,
+          next_question=next_question,
+          timeStamp=str(int(time.time() * 1000))  # Add this line
+      ).model_dump())
 
 async def send_error_message(websocket: WebSocket, error_message: str):
     """Send an error message to the WebSocket client."""
     await websocket.send_json({
         "type": "error",
-        "content": error_message
+        "content": error_message,
+        "timeStamp": str(int(time.time() * 1000))
     })
 
 async def safe_transcribe(transcriber: TranscriberService, audio_data: str) -> Optional[str]:
@@ -89,7 +91,8 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
         transcript_send_start = time.time()
         await websocket.send_json({
             "type": "transcript",
-            "content": transcript
+            "content": transcript,
+            "timeStamp": str(int(time.time() * 1000))  # Add this line
         })
         transcript_send_time = time.time() - transcript_send_start
         logger.debug(f"Sent transcript to client in {transcript_send_time:.3f}s")
@@ -146,7 +149,8 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 "type": "next_question",
                 "content": combined_message,
                 "state": session_state,
-                "next_question": next_question_data
+                "next_question": next_question_data,
+                "timeStamp": str(int(time.time() * 1000))
             }
             
             await websocket.send_json(comprehensive_response)
@@ -165,7 +169,8 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 "type": "interview_complete",
                 "content": response_data["feedback"],
                 "message": response_data["message"],
-                "state": session_state
+                "state": session_state,
+                "timeStamp": str(int(time.time() * 1000))
             })
         else:
             await send_websocket_message(websocket, "message", response, session_state)
@@ -216,7 +221,8 @@ async def handle_websocket_connection(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "heartbeat",
                         "content": "pong",
-                        "timestamp": raw_message.get("timestamp")
+                        "timestamp": raw_message.get("timestamp"),
+                        "timeStamp": str(int(time.time() * 1000))
                     })
                     continue
                 
