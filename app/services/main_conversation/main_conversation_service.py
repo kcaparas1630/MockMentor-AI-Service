@@ -35,6 +35,7 @@ from openai import AsyncOpenAI
 from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
 from typing import Dict, List
+from app.core.secure_prompt_manager import sanitize_text
 from app.services.main_conversation.tools.question_utils.fetch_and_store_questions import fetch_and_store_questions
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
 from app.services.main_conversation.tools.question_utils.advance_to_next_question import advance_to_next_question
@@ -224,12 +225,23 @@ class MainConversationService:
             # Fetch and store questions
             await fetch_and_store_questions(interview_session, self._session_questions, self._current_question_index)
             
-            # Add system message
-            system_message = {
-                "role": "system",
-                "content": get_system_prompt(interview_session)
-            }
-            self.add_to_context(session_id, "system", system_message["content"])
+            # Determine system prompt: custom or default
+            try:
+                raw_instruction = getattr(interview_session, "custom_instruction", None)
+                custom_prompt = sanitize_text(raw_instruction) if raw_instruction else None
+            except ValueError as e:
+                custom_prompt = None
+                logger.warning(f"[Session {session_id}] Invalid custom instruction provided: {e}")
+
+            if custom_prompt:
+                logger.info(f"[Session {session_id}] Using custom instruction prompt.")
+                system_prompt = custom_prompt
+            else:
+                logger.info(f"[Session {session_id}] Using default system prompt.")
+                system_prompt = get_system_prompt(interview_session)
+
+            # Add system message to context
+            self.add_to_context(session_id, "system", system_prompt)
 
             # Return initial greeting
             return f"Hi {interview_session.user_name}, thanks for being here today! We're going to walk through a series of questions designed to help you shine and feel confident in your responses. This mock interview will give you a chance to practice articulating your experiences clearly and concisely. I'll provide feedback after each of your answers to help you refine your approach. Are you ready for your interview?"
