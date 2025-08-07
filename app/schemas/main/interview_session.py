@@ -7,7 +7,8 @@ Dependencies:
 
 Author: @kcaparas1630
 """
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional
 
 class InterviewSession(BaseModel):
     session_id: str
@@ -15,3 +16,4 @@ class InterviewSession(BaseModel):
     jobRole: str
     jobLevel: str
     questionType: str
+    custom_instruction: Optional[str] = Field(None, max_length=1000)
