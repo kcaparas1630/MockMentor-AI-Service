@@ -45,14 +45,12 @@ class TranscriberService:
         """
         try:
             audio_bytes = base64.b64decode(base64_data)
-            logger.debug(f"Decoded audio data, size: {len(audio_bytes)} bytes")
             
             # Use .webm extension for WebM/Opus format
             with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_audio:
                 temp_audio.write(audio_bytes)
                 temp_path = temp_audio.name
             
-            logger.debug(f"Created temporary file: {temp_path}")
             
             segments, _ = self.model.transcribe(
                 temp_path,
@@ -74,6 +72,5 @@ class TranscriberService:
             try:
                 if 'temp_path' in locals():
                     os.unlink(temp_path)
-                    logger.debug(f"Cleaned up temporary file: {temp_path}")
             except OSError as e:
                 logger.warning(f"Error removing temporary file {temp_path}: {str(e)}")
