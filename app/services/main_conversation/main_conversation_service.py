@@ -97,6 +97,7 @@ class MainConversationService:
     _session_questions: Dict[str, List[str]] = {}  # Store questions for each session
     _current_question_index: Dict[str, int] = {}  # Track current question index for each session
     _session_state: Dict[str, Dict] = {} # Track session state for each session
+    _session_question_data: Dict[str, List[Dict]] = {} # Store question data with IDs for each session
 
     def __new__(cls):
         """
@@ -222,7 +223,7 @@ class MainConversationService:
             }
             
             # Fetch and store questions
-            await fetch_and_store_questions(interview_session, self._session_questions, self._current_question_index)
+            await fetch_and_store_questions(interview_session, self._session_questions, self._current_question_index, self._session_question_data)
             
             # Add system message
             system_message = {
@@ -283,7 +284,8 @@ class MainConversationService:
                         session_id, analysis_response, feedback_text, session_state,
                         self._session_questions, self._current_question_index,
                         self.add_to_context, advance_to_next_question, get_current_question, reset_question_attempts
-                    )
+                    ),
+                    self._session_question_data
                 )
             
             # Defensive: If not waiting for answer, prompt user
