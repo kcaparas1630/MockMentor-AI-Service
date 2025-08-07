@@ -77,6 +77,8 @@ async def fetch_and_store_questions(interview_session: InterviewSession, _sessio
         if _session_question_data is not None and 'question_data' in questions_result:
             _session_question_data[interview_session.session_id] = questions_result['question_data']
             logger.info(f"Stored question data with IDs for session {interview_session.session_id}")
+        else:
+            logger.warning(f"Cannot store question data. _session_question_data is None: {_session_question_data is None}, 'question_data' in result: {'question_data' in questions_result}")
         
         logger.info(f"Stored {len(questions_result['questions'])} questions for session {interview_session.session_id}")
         
