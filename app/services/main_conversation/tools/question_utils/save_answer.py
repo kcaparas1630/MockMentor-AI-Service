@@ -46,6 +46,7 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
     Returns:
         Dictionary with success status and saved answer data
     """
+    
 
     # Validate required parameters
     if not session_id or not question or not answer or question_index is None:
@@ -61,12 +62,22 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
             async with session.start_transaction():
                 # Get questionId from session data if available
                 question_id = None
-                if session_question_data and session_id in session_question_data:
-                    question_data_list = session_question_data[session_id]
-                    if 0 < question_index < len(question_data_list):
-                        question_id = question_data_list[question_index]["id"]
-                    else: 
-                        logger.warning(f"Question index {question_index} out of bounds for session {session_id}")
+                if session_question_data:
+                    if session_id in session_question_data:
+                        question_data_list = session_question_data[session_id]
+                        if 0 <= question_index < len(question_data_list):
+                            question_data_item = question_data_list[question_index]
+                            if isinstance(question_data_item, dict) and "id" in question_data_item:
+                                question_id = question_data_item["id"]
+                                logger.debug(f"Retrieved question_id: {question_id} for index {question_index}")
+                            else:
+                                logger.warning(f"Question data item missing 'id' key at index {question_index}")
+                        else: 
+                            logger.warning(f"Question index {question_index} out of bounds for session {session_id}")
+                    else:
+                        logger.warning(f"Session {session_id} not found in session_question_data")
+                else:
+                    logger.debug(f"No session_question_data provided for session {session_id}")
                 
                 # Create InterviewQuestion document
                 question_entry = {
