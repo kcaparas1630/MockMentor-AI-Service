@@ -32,7 +32,7 @@ interview_question_collection = db.InterviewQuestion
 
 async def save_answer(session_id: str, question: str, answer: str, question_index: int, metadata: Dict[str, Any] = None, feedback_data: Dict[str, Any] = None, session_question_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """
-    Save user answer with feedback to MongoDB database.
+    Save user answer with feedback to MongoDB database using transactions for data consistency.
     
     Args:
         session_id: The interview session identifier
@@ -41,6 +41,7 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
         question_index: The index of the question in the session
         metadata: Additional session metadata (jobRole, jobLevel, etc.)
         feedback_data: Optional feedback data containing score, tips, and feedback
+        session_question_data: Session question data for questionId retrieval
     
     Returns:
         Dictionary with success status and saved answer data
@@ -54,80 +55,86 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
     if session_question_data and not isinstance(session_question_data, dict):
         raise ValueError("session_question_data must be a dictionary.")
     
-    try:
-        # Get questionId from session data if available
-        question_id = None
-        if session_question_data and session_id in session_question_data:
-            question_data_list = session_question_data[session_id]
-            if  0 < question_index < len(question_data_list):
-                question_id = question_data_list[question_index]["id"]
-            else: 
-                logger.warning(f"Question index {question_index} out of bounds for session {session_id}")
-        # Insert into InterviewQuestion collection with feedback
-        question_entry = {
-            "interviewId": session_id,  # Link to Interview collection
-            "questionId": question_id,  # Link to Question collection
-            "questionText": question,
-            "answer": answer,
-            "score": feedback_data.get("score"),
-            "tips": feedback_data.get("tips", []),
-            "feedback": feedback_data.get("feedback"),
-            "answeredAt": datetime.now(timezone.utc)
-        }
-        
-        # Insert the question/answer/feedback into InterviewQuestion collection
-        question_result = await interview_question_collection.insert_one(question_entry)
-        
-        # Add the question entry with its new _id to the Interview's questions array
-        question_entry_with_id = question_entry.copy()
-        question_entry_with_id["_id"] = question_result.inserted_id
-        
-        # Update Interview collection: add question to questions array and update timestamp
-        interview_result = await interview_collection.update_one(
-            {"_id": ObjectId(session_id)},
-            {
-                "$push": {"questions": question_entry_with_id},
-                "$set": {"updatedAt": datetime.now(timezone.utc)}
-            }
-        )
-        
-        logger.info(f"Interview update result - matched: {interview_result.matched_count}, modified: {interview_result.modified_count}")
-        
-        if interview_result.matched_count == 0:
-            logger.warning(f"No interview found with session_id: {session_id}")
+    # Start a MongoDB transaction session
+    async with await client.start_session() as session:
+        try:
+            async with session.start_transaction():
+                # Get questionId from session data if available
+                question_id = None
+                if session_question_data and session_id in session_question_data:
+                    question_data_list = session_question_data[session_id]
+                    if 0 < question_index < len(question_data_list):
+                        question_id = question_data_list[question_index]["id"]
+                    else: 
+                        logger.warning(f"Question index {question_index} out of bounds for session {session_id}")
+                
+                # Create InterviewQuestion document
+                question_entry = {
+                    "interviewId": session_id,  # Link to Interview collection
+                    "questionId": question_id,  # Link to Question collection
+                    "questionText": question,
+                    "answer": answer,
+                    "score": feedback_data.get("score") if feedback_data else None,
+                    "tips": feedback_data.get("tips", []) if feedback_data else [],
+                    "feedback": feedback_data.get("feedback") if feedback_data else None,
+                    "answeredAt": datetime.now(timezone.utc)
+                }
+                
+                # Insert into InterviewQuestion collection
+                question_result = await interview_question_collection.insert_one(question_entry, session=session)
+                question_object_id = question_result.inserted_id
+                
+                # Update Interview collection: add only the InterviewQuestion ID to questions array
+                interview_result = await interview_collection.update_one(
+                    {"_id": ObjectId(session_id)},
+                    {
+                        "$push": {"questions": question_object_id},
+                        "$set": {"updatedAt": datetime.now(timezone.utc)}
+                    },
+                    session=session
+                )
+                
+                if interview_result.matched_count == 0:
+                    await session.abort_transaction()
+                    logger.warning(f"No interview found with session_id: {session_id}")
+                    return {
+                        "success": False,
+                        "error": f"Interview not found for session {session_id}"
+                    }
+                
+                if interview_result.modified_count == 0:
+                    await session.abort_transaction()
+                    logger.warning(f"Interview document was not modified for session_id: {session_id}")
+                    return {
+                        "success": False, 
+                        "error": f"Failed to update Interview document for session {session_id}"
+                    }
+                
+                # Commit transaction
+                await session.commit_transaction()
+                
+                logger.info(f"Successfully saved answer for session {session_id}, question {question_index} with transaction")
+                
+                return {
+                    "success": True,
+                    "session_id": session_id,
+                    "question_index": question_index,
+                    "question_id": str(question_object_id),
+                    "interview_matched_count": interview_result.matched_count,
+                    "interview_modified_count": interview_result.modified_count
+                }
+                
+        except Exception as e:
+            await session.abort_transaction()
+            logger.error(f"Error saving answer (transaction aborted): {e}")
             return {
                 "success": False,
-                "error": f"Interview not found for session {session_id}"
+                "error": str(e)
             }
-        
-        if interview_result.modified_count == 0:
-            logger.warning(f"Interview document was not modified for session_id: {session_id}")
-            return {
-                "success": False, 
-                "error": f"Failed to update Interview document for session {session_id}"
-            }
-        
-        logger.info(f"Saved answer for session {session_id}, question {question_index}")
-        
-        return {
-            "success": True,
-            "session_id": session_id,
-            "question_index": question_index,
-            "question_id": str(question_result.inserted_id),
-            "interview_matched_count": interview_result.matched_count,
-            "interview_modified_count": interview_result.modified_count
-        }
-        
-    except Exception as e:
-        logger.error(f"Error saving answer: {e}")
-        return {
-            "success": False,
-            "error": str(e)
-        }
 
 async def get_session_answers(session_id: str) -> Dict[str, Any]:
     """
-    Retrieve all answers for a given session from Interview collection.
+    Retrieve all answers for a given session by joining Interview and InterviewQuestion collections.
     
     Args:
         session_id: The interview session identifier
@@ -137,7 +144,7 @@ async def get_session_answers(session_id: str) -> Dict[str, Any]:
     """
     
     try:
-        # Get the interview document and extract questions array
+        # Get the interview document and extract question IDs array
         interview = await interview_collection.find_one(
             {"_id": ObjectId(session_id)},
             {"questions": 1, "_id": 0}  # Only get questions array, exclude _id
@@ -150,8 +157,25 @@ async def get_session_answers(session_id: str) -> Dict[str, Any]:
                 "error": f"Interview not found for session {session_id}"
             }
         
-        # Get questions and sort by answeredAt timestamp
-        questions = interview.get("questions", [])
+        question_ids = interview.get("questions", [])
+        
+        if not question_ids:
+            logger.info(f"No questions found for session {session_id}")
+            return {
+                "success": True,
+                "answers": [],
+                "count": 0
+            }
+        
+        # Retrieve InterviewQuestion documents using the IDs
+        questions_cursor = interview_question_collection.find(
+            {"_id": {"$in": question_ids}},
+            {"_id": 1, "questionText": 1, "answer": 1, "score": 1, "tips": 1, "feedback": 1, "answeredAt": 1, "questionId": 1}
+        )
+        
+        questions = await questions_cursor.to_list(length=None)
+        
+        # Sort by answeredAt timestamp to maintain chronological order
         questions.sort(key=lambda x: x.get("answeredAt", datetime.min.replace(tzinfo=timezone.utc)))
         
         logger.info(f"Retrieved {len(questions)} answers for session {session_id}")
