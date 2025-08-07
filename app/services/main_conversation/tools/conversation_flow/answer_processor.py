@@ -32,7 +32,8 @@ async def process_user_answer(
     client,
     add_to_context_func,
     format_feedback_func,
-    handle_next_action_func
+    handle_next_action_func,
+    session_question_data: Dict[str, List[Dict]] = None
 ) -> str:
     """
     Process user's answer to the current question and generate appropriate response.
@@ -58,6 +59,8 @@ async def process_user_answer(
         >>> response = await process_user_answer("123", "My answer...", session_state, ...)
         >>> print(response)  # Formatted feedback and next action
     """
+    
+    
     # Validate session metadata
     if "session_metadata" not in session_state:
         raise BadRequest(f"Session {session_id} metadata not found. Session must be properly initialized.")
@@ -94,7 +97,8 @@ async def process_user_answer(
             "jobLevel": session_metadata["jobLevel"], 
             "questionType": session_metadata["questionType"]
         },
-        feedback_data=feedback_data
+        feedback_data=feedback_data,
+        session_question_data=session_question_data
     )
     
     if save_result["success"]:
