@@ -150,9 +150,9 @@ async def get_session_answers(session_id: str) -> Dict[str, Any]:
                 "error": f"Interview not found for session {session_id}"
             }
         
-        # Get questions and sort by questionIndex
+        # Get questions and sort by answeredAt timestamp
         questions = interview.get("questions", [])
-        questions.sort(key=lambda x: x.get("questionIndex", 0))
+        questions.sort(key=lambda x: x.get("answeredAt", datetime.min.replace(tzinfo=timezone.utc)))
         
         logger.info(f"Retrieved {len(questions)} answers for session {session_id}")
         
