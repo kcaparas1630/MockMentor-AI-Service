@@ -36,6 +36,8 @@ async def fetch_and_store_questions(interview_session: InterviewSession, _sessio
         _session_questions (dict): Dictionary to store questions for each session, modified in-place.
         _current_question_index (dict): Dictionary to store current question indices for each session,
             modified in-place.
+        _session_question_data (dict, optional): Dictionary to store question data with IDs for each session,
+            modified in-place. Defaults to None.
             
     Returns:
         List[str]: The list of questions fetched and stored for the session.
