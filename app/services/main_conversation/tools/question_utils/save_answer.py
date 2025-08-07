@@ -59,9 +59,10 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
         question_id = None
         if session_question_data and session_id in session_question_data:
             question_data_list = session_question_data[session_id]
-            if question_index < len(question_data_list):
+            if  0 < question_index < len(question_data_list):
                 question_id = question_data_list[question_index]["id"]
-        
+            else: 
+                logger.warning(f"Question index {question_index} out of bounds for session {session_id}")
         # Insert into InterviewQuestion collection with feedback
         question_entry = {
             "interviewId": session_id,  # Link to Interview collection
