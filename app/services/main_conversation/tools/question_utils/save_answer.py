@@ -45,6 +45,14 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
     Returns:
         Dictionary with success status and saved answer data
     """
+
+    # Validate required parameters
+    if not session_id or not question or not answer or question_index is None:
+        raise ValueError("session_id, question, answer, and question_index are required parameters")
+    if feedback_data and not isinstance(feedback_data, dict):
+        raise ValueError("feedback_data must be a dictionary.")
+    if session_question_data and not isinstance(session_question_data, dict):
+        raise ValueError("session_question_data must be a dictionary.")
     
     try:
         # Get questionId from session data if available
