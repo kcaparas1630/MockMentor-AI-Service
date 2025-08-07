@@ -22,7 +22,7 @@ from app.services.main_conversation.tools.question_utils.get_questions import ge
 from loguru import logger
 from app.errors.exceptions import BadRequest, InternalServerError
 
-async def fetch_and_store_questions(interview_session: InterviewSession, _session_questions: dict, _current_question_index: dict) -> list:
+async def fetch_and_store_questions(interview_session: InterviewSession, _session_questions: dict, _current_question_index: dict, _session_question_data: dict = None) -> list:
     """
     Fetch questions from database and store them for the session.
     
@@ -70,6 +70,11 @@ async def fetch_and_store_questions(interview_session: InterviewSession, _sessio
         # Store questions and initialize index
         _session_questions[interview_session.session_id] = questions_result['questions']
         _current_question_index[interview_session.session_id] = 0
+        
+        # Store question data with IDs if available
+        if _session_question_data is not None and 'question_data' in questions_result:
+            _session_question_data[interview_session.session_id] = questions_result['question_data']
+            logger.info(f"Stored question data with IDs for session {interview_session.session_id}")
         
         logger.info(f"Stored {len(questions_result['questions'])} questions for session {interview_session.session_id}")
         
