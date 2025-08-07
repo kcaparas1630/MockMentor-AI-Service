@@ -20,17 +20,19 @@ from dotenv import load_dotenv
 from loguru import logger
 from datetime import datetime, timezone
 from typing import Dict, Any
+from bson import ObjectId
 
 load_dotenv()
 
 # Initialize async MongoDB client (similar to your working sync version)
 client = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
 db = client.MockMentor
-answers_collection = db.Answer
+interview_collection = db.Interview
+interview_question_collection = db.InterviewQuestion
 
-async def save_answer(session_id: str, question: str, answer: str, question_index: int, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+async def save_answer(session_id: str, question: str, answer: str, question_index: int, metadata: Dict[str, Any] = None, feedback_data: Dict[str, Any] = None, session_question_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """
-    Save user answer to MongoDB database.
+    Save user answer with feedback to MongoDB database.
     
     Args:
         session_id: The interview session identifier
@@ -38,31 +40,73 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
         answer: The user's response
         question_index: The index of the question in the session
         metadata: Additional session metadata (jobRole, jobLevel, etc.)
+        feedback_data: Optional feedback data containing score, tips, and feedback
     
     Returns:
         Dictionary with success status and saved answer data
     """
     
     try:
-        answer_document = {
-            "sessionId": session_id,
-            "question": question,
+        # Get questionId from session data if available
+        question_id = None
+        if session_question_data and session_id in session_question_data:
+            question_data_list = session_question_data[session_id]
+            if question_index < len(question_data_list):
+                question_id = question_data_list[question_index]["id"]
+        
+        # Insert into InterviewQuestion collection with feedback
+        question_entry = {
+            "interviewId": session_id,  # Link to Interview collection
+            "questionId": question_id,  # Link to Question collection
+            "questionText": question,
             "answer": answer,
-            "questionIndex": question_index,
-            "timestamp": datetime.now(timezone.utc),
-            "metadata": metadata or {}
+            "score": feedback_data.get("score"),
+            "tips": feedback_data.get("tips", []),
+            "feedback": feedback_data.get("feedback"),
+            "answeredAt": datetime.now(timezone.utc)
         }
         
-        # Insert the answer document (direct access like your working version)
-        result = await answers_collection.insert_one(answer_document)
+        # Insert the question/answer/feedback into InterviewQuestion collection
+        question_result = await interview_question_collection.insert_one(question_entry)
+        
+        # Add the question entry with its new _id to the Interview's questions array
+        question_entry_with_id = question_entry.copy()
+        question_entry_with_id["_id"] = question_result.inserted_id
+        
+        # Update Interview collection: add question to questions array and update timestamp
+        interview_result = await interview_collection.update_one(
+            {"_id": ObjectId(session_id)},
+            {
+                "$push": {"questions": question_entry_with_id},
+                "$set": {"updatedAt": datetime.now(timezone.utc)}
+            }
+        )
+        
+        logger.info(f"Interview update result - matched: {interview_result.matched_count}, modified: {interview_result.modified_count}")
+        
+        if interview_result.matched_count == 0:
+            logger.warning(f"No interview found with session_id: {session_id}")
+            return {
+                "success": False,
+                "error": f"Interview not found for session {session_id}"
+            }
+        
+        if interview_result.modified_count == 0:
+            logger.warning(f"Interview document was not modified for session_id: {session_id}")
+            return {
+                "success": False, 
+                "error": f"Failed to update Interview document for session {session_id}"
+            }
         
         logger.info(f"Saved answer for session {session_id}, question {question_index}")
         
         return {
             "success": True,
-            "answer_id": str(result.inserted_id),
             "session_id": session_id,
-            "question_index": question_index
+            "question_index": question_index,
+            "question_id": str(question_result.inserted_id),
+            "interview_matched_count": interview_result.matched_count,
+            "interview_modified_count": interview_result.modified_count
         }
         
     except Exception as e:
@@ -74,7 +118,7 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
 
 async def get_session_answers(session_id: str) -> Dict[str, Any]:
     """
-    Retrieve all answers for a given session.
+    Retrieve all answers for a given session from Interview collection.
     
     Args:
         session_id: The interview session identifier
@@ -84,20 +128,29 @@ async def get_session_answers(session_id: str) -> Dict[str, Any]:
     """
     
     try:
-        # Use direct collection access like your working version
-        cursor = answers_collection.find(
-            {"sessionId": session_id},
-            {"_id": 0}  # Exclude MongoDB _id field
-        ).sort("questionIndex", 1)  # Sort by question index
+        # Get the interview document and extract questions array
+        interview = await interview_collection.find_one(
+            {"_id": ObjectId(session_id)},
+            {"questions": 1, "_id": 0}  # Only get questions array, exclude _id
+        )
         
-        answers = await cursor.to_list(length=None)
+        if not interview:
+            logger.warning(f"No interview found with session_id: {session_id}")
+            return {
+                "success": False,
+                "error": f"Interview not found for session {session_id}"
+            }
         
-        logger.info(f"Retrieved {len(answers)} answers for session {session_id}")
+        # Get questions and sort by questionIndex
+        questions = interview.get("questions", [])
+        questions.sort(key=lambda x: x.get("questionIndex", 0))
+        
+        logger.info(f"Retrieved {len(questions)} answers for session {session_id}")
         
         return {
             "success": True,
-            "answers": answers,
-            "count": len(answers)
+            "answers": questions,
+            "count": len(questions)
         }
         
     except Exception as e:
