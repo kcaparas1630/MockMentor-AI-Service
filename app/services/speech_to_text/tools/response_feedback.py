@@ -358,14 +358,11 @@ User Response: {analysis_request.answer}"""
         try:
             import json
             json.loads(content.strip())
-            print(f"🔥 CONTENT IS ALREADY VALID JSON - SKIPPING CLEANING")
             # Content is already valid JSON, just strip whitespace
             content = content.strip()
         except json.JSONDecodeError:
-            print(f"🔥 CONTENT NEEDS CLEANING - APPLYING CLEAN_AI_RESPONSE")
             # Clean the response by removing thinking tags and any content before JSON
             content = clean_ai_response(content)
-            print(f"🔥 AFTER CLEANING: {content}")
         
         # Log the cleaned content
         logger.info(f"[FEEDBACK_DEBUG] Final content: {content}")
@@ -397,15 +394,8 @@ User Response: {analysis_request.answer}"""
             
             # Log the parsed JSON for debugging
             logger.info(f"[FEEDBACK_DEBUG] Successfully parsed JSON: {feedback_data}")
-            print(f"🔥 PARSED JSON KEYS: {list(feedback_data.keys()) if isinstance(feedback_data, dict) else 'NOT A DICT'}")
-            print(f"🔥 PARSED JSON TYPE: {type(feedback_data)}")
-            print(f"🔥 PARSED JSON CONTENT: {feedback_data}")
             
             # Check specific keys
-            print(f"🔥 JSON HAS 'score': {'score' in feedback_data if isinstance(feedback_data, dict) else False}")
-            print(f"🔥 JSON HAS 'feedback': {'feedback' in feedback_data if isinstance(feedback_data, dict) else False}")
-            print(f"🔥 JSON HAS 'strengths': {'strengths' in feedback_data if isinstance(feedback_data, dict) else False}")
-            print(f"🔥 JSON HAS 'tips': {'tips' in feedback_data if isinstance(feedback_data, dict) else False}")
             
             # After feedback_data = json.loads(content)
             next_action_data = feedback_data.get("next_action")
@@ -439,10 +429,6 @@ User Response: {analysis_request.answer}"""
                 next_action=next_action
             )
             
-            print(f"🔥 CREATED FEEDBACK_RESPONSE - score: {feedback_response.score}")
-            print(f"🔥 CREATED FEEDBACK_RESPONSE - feedback: {feedback_response.feedback}")
-            print(f"🔥 CREATED FEEDBACK_RESPONSE - strengths: {feedback_response.strengths}")
-            print(f"🔥 CREATED FEEDBACK_RESPONSE - tips: {feedback_response.tips}")
             
             total_duration = time.time() - total_start_time
             logger.info(f"[PERF] Total response_feedback completed in {total_duration:.3f}s")
