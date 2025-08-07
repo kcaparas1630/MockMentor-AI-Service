@@ -57,23 +57,32 @@ async def get_questions(jobRole: str, jobLevel: str, questionType: str):
         }
         logger.info(f"Querying MongoDB with: {query}")
         
-        # Find questions based on criteria and only return the question field
+        # Find questions based on criteria and return both question text and ID
         questions = list(questions_collection.find(
             query,
-            {"question": 1, "_id": 0}  # Only return the question field
+            {"question": 1, "_id": 1}  # Return both question text and ID
         ))
         
         # Log the raw results for debugging
         logger.info(f"Raw MongoDB results: {questions}")
         
-        # Extract just the question text from each document
-        question_texts = [doc["question"] for doc in questions]
+        # Extract question data with both text and ID
+        question_data = [
+            {
+                "id": str(doc["_id"]),
+                "text": doc["question"]
+            } for doc in questions
+        ]
+        
+        # Also extract just the question texts for backward compatibility
+        question_texts = [q["text"] for q in question_data]
         
         logger.info(f"Found {len(question_texts)} questions for {jobRole} {jobLevel} {questionType}")
         
         return {
             "success": True,
-            "questions": question_texts,  # Return just the list of questions
+            "questions": question_texts,  # Keep for backward compatibility
+            "question_data": question_data,  # New field with IDs and texts
             "count": len(question_texts),
             "criteria": {
                 "jobRole": jobRole,

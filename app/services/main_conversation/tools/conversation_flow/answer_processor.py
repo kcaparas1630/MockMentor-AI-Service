@@ -32,7 +32,8 @@ async def process_user_answer(
     client,
     add_to_context_func,
     format_feedback_func,
-    handle_next_action_func
+    handle_next_action_func,
+    session_question_data: Dict[str, List[Dict]] = None
 ) -> str:
     """
     Process user's answer to the current question and generate appropriate response.
@@ -58,32 +59,16 @@ async def process_user_answer(
         >>> response = await process_user_answer("123", "My answer...", session_state, ...)
         >>> print(response)  # Formatted feedback and next action
     """
+    
+    
     # Validate session metadata
     if "session_metadata" not in session_state:
         raise BadRequest(f"Session {session_id} metadata not found. Session must be properly initialized.")
     
-    # Get current question and save the answer to database
+    # Get current question and session metadata
     current_question = get_current_question(session_id, session_questions, current_question_index)
     current_index = current_question_index.get(session_id, 0)
     session_metadata = session_state["session_metadata"]
-    
-    # Save answer to MongoDB
-    save_result = await save_answer(
-        session_id=session_id,
-        question=current_question,
-        answer=user_message,
-        question_index=current_index,
-        metadata={
-            "jobRole": session_metadata["jobRole"],
-            "jobLevel": session_metadata["jobLevel"], 
-            "questionType": session_metadata["questionType"]
-        }
-    )
-    
-    if save_result["success"]:
-        logger.info(f"Successfully saved answer for session {session_id}, question {current_index}")
-    else:
-        logger.error(f"Failed to save answer: {save_result['error']}")
     
     # Analyze the user's response
     logger.info(f"[FLOW_DEBUG] About to call analyze_user_response() for session {session_id}")
@@ -94,6 +79,32 @@ async def process_user_answer(
     # Generate feedback text
     feedback_text = format_feedback_func(analysis_response)
     add_to_context_func(session_id, "assistant", feedback_text)
+    
+    # Save answer with feedback data to MongoDB
+    feedback_data = {
+        "score": analysis_response.score,
+        "tips": analysis_response.tips,
+        "feedback": feedback_text
+    }
+    
+    save_result = await save_answer(
+        session_id=session_id,
+        question=current_question,
+        answer=user_message,
+        question_index=current_index,
+        metadata={
+            "jobRole": session_metadata["jobRole"],
+            "jobLevel": session_metadata["jobLevel"], 
+            "questionType": session_metadata["questionType"]
+        },
+        feedback_data=feedback_data,
+        session_question_data=session_question_data
+    )
+    
+    if save_result["success"]:
+        logger.info(f"Successfully saved answer with feedback for session {session_id}, question {current_index}")
+    else:
+        logger.error(f"Failed to save answer with feedback: {save_result['error']}")
     
     # Handle the next action based on analysis
     return await handle_next_action_func(session_id, analysis_response, feedback_text, session_state)
