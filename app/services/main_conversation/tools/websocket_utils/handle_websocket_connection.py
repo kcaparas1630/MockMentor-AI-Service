@@ -312,8 +312,25 @@ async def handle_websocket_connection(websocket: WebSocket):
                         total_audio_end_time = time.time() - audio_end_start
                         logger.info(f"Complete audio_end processing took {total_audio_end_time:.3f}s")
                     
-                    # Run audio processing in background, don't await
-                    asyncio.create_task(process_audio_end())
+                    # Run audio processing in background with error handling
+                    async def process_audio_end_with_error_handling():
+                        try:
+                            await process_audio_end()
+                        except Exception as e:
+                            logger.error(f"Error in background audio processing: {e}")
+                            import traceback
+                            logger.error(f"Full traceback: {traceback.format_exc()}")
+                            # Optionally notify client of processing error
+                            try:
+                                await send_error_message(websocket, "Audio processing failed")
+                            except:
+                                pass  # WebSocket might be closed
+                    
+                    task = asyncio.create_task(
+                        process_audio_end_with_error_handling(),
+                        name=f"audio_end_processing_{session.session_id if session else 'unknown'}"
+                    )
+                    logger.debug(f"Created background task: {task.get_name()}")
                     continue
 
                 if message_type == "behavioral_analysis":
