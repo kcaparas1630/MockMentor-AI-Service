@@ -24,7 +24,8 @@ from app.core.ai_client_manager import get_facial_analysis_client
 import logging
 import json
 import time
-import os
+import re
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class FacialLandmarksAnalysis:
             Exception: If there's a critical error in the analysis process
         """
         try:
-            logger.info(f"[ENTRY] analyze_landmarks function called - ENTRY POINT")
+            logger.info("[ENTRY] analyze_landmarks function called - ENTRY POINT")
             
             total_start_time = time.time()
             
@@ -118,7 +119,6 @@ class FacialLandmarksAnalysis:
                 logger.error(f"Content that failed to parse: {content}")
                 
                 # Try to extract JSON from the response if it's mixed with other text
-                import re
                 json_match = re.search(r'\{[^}]+\}', content)
                 if json_match:
                     try:
@@ -135,7 +135,6 @@ class FacialLandmarksAnalysis:
                 
         except Exception as e:
             logger.error(f"[ERROR] Exception in analyze_landmarks: {type(e).__name__}: {e}")
-            import traceback
             logger.error(f"[ERROR] Full traceback: {traceback.format_exc()}")
             
             # Return error response
