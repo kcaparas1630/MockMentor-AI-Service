@@ -349,8 +349,8 @@ async def handle_websocket_connection(websocket: WebSocket):
                     logger.debug(f"Received {len(landmarks_data)} landmark frames")
                     logger.debug(f"Sample landmark frame: {landmarks_data[0] if landmarks_data else 'None'}")
                     
-                    # Validate first frame structure
-                    if landmarks_data and not all(key in landmarks_data[0] for key in ["confidence", "timestamp", "landmarks"]):
+                    # Validate first frame structure (client sends timeStamp in camelCase)
+                    if landmarks_data and not all(key in landmarks_data[0] for key in ["confidence", "timeStamp", "landmarks"]):
                         logger.warning("Invalid landmarks data structure")
                         await send_error_message(websocket, "Invalid landmarks data format")
                         continue
@@ -359,7 +359,7 @@ async def handle_websocket_connection(websocket: WebSocket):
                     landmarks_summary = {
                         "total_frames": len(landmarks_data),
                         "confidence_scores": [frame.get("confidence", 0) for frame in landmarks_data],
-                        "timestamps": [frame.get("timestamp", 0) for frame in landmarks_data],
+                        "timestamps": [frame.get("timeStamp", 0) for frame in landmarks_data],
                         "sample_landmarks": landmarks_data[0].get("landmarks", [[]])[0] if landmarks_data and landmarks_data[0].get("landmarks") else []
                     }
                     
