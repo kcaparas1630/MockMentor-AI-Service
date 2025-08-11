@@ -287,7 +287,7 @@ class MainConversationService:
             if session_state["waiting_for_answer"]:
                 return await process_user_answer(
                     session_id, last_user_message, session_state,
-                    self._session_questions, self._current_question_index, self.client,
+                    self._session_questions, self._current_question_index, self.text_analysis_client,
                     self.add_to_context, format_feedback_response,
                     lambda session_id, analysis_response, feedback_text, session_state: handle_next_action(
                         session_id, analysis_response, feedback_text, session_state,

@@ -144,11 +144,8 @@ async def analyze_user_response(
         answer=user_message
     )
     
-    # Use dedicated text analysis client instead of shared conversation client
-    from app.core.ai_client_manager import get_text_analysis_client
-    text_analysis_client = get_text_analysis_client()
-    
-    logger.debug("Using dedicated text analysis client for response feedback")
-    text_answers_service = TextAnswersService(text_analysis_client)
+    # Use the provided client (should be text analysis client from caller)
+    logger.debug("Using provided text analysis client for response feedback")
+    text_answers_service = TextAnswersService(client)
     result = await text_answers_service.analyze_response(analysis_request)
     return result 
