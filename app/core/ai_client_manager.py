@@ -67,7 +67,7 @@ class AIClientManager:
                         "Please set it in your .env file or environment variables."
                     )
             
-            base_url = "https://api.studio.nebius.com/v1"
+            base_url = os.getenv("NEBIUS_BASE_URL", "https://api.studio.nebius.com/v1")
             
             # Create dedicated clients for different services
             try:
