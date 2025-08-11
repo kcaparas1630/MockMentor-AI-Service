@@ -307,7 +307,7 @@ NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
                 },
                 sanitization_config={
                     "landmarks_data": {
-                        "max_length": 10000,  # Allow larger landmarks data (10k chars)
+                        "max_length": 50000,  # Allow larger landmarks data (50k chars)
                         "escape_html": False   # Don't HTML escape to preserve JSON readability
                     }
                 }
