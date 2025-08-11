@@ -17,7 +17,7 @@ from typing import Literal, Optional, Dict, Any
 
 # Base model for all websocket messages
 class WebSocketMessage(BaseModel):
-    type: Literal["message", "error", "transcript", "incremental_transcript", "heartbeat", "next_question", "interview_complete"]
+    type: Literal["message", "error", "transcript", "incremental_transcript", "heartbeat", "next_question", "interview_complete", "behavioral_analysis"]
     content: str
     state: Optional[Dict[str, Any]] = None
     next_question: Optional[Dict[str, Any]] = None

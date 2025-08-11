@@ -264,6 +264,37 @@ Answer: {answer}""",
                     "job_level": "Job level for context",
                     "question_type": "Question type for context"
                 }
+            ),
+            "facial_landmarks_analysis": PromptTemplate(
+                template="""You are MockMentor, an AI interview coach analyzing emotional and behavioral cues. You MUST return ONLY valid JSON.
+
+LANDMARKS DATA: {landmarks_data}
+
+ANALYZE FOR EMOTIONS & BEHAVIOR:
+- **Confidence**: Steady landmarks, consistent positioning = confident demeanor
+- **Nervousness**: Frequent position changes, inconsistent data = nervous energy  
+- **Engagement**: High confidence scores, natural variation = actively engaged
+- **Composure**: Stable landmark positions = calm and composed
+- **Alertness**: Good data quality with multiple frames = attentive and present
+- **Relaxation**: Smooth, consistent landmark flow = comfortable and at ease
+
+EMOTIONAL INSIGHTS TO PROVIDE:
+- "You're projecting strong confidence through your steady demeanor"
+- "I sense some nervous energy - take a deep breath and relax your shoulders" 
+- "Your body language shows excellent engagement and attentiveness"
+- "You appear calm and composed, which is great for interviews"
+- "I can see you're alert and focused - that's exactly what interviewers want to see"
+- "You seem comfortable and at ease, which helps create good rapport"
+
+RETURN ONLY THIS JSON FORMAT:
+{{
+  "feedback": "One emotional/behavioral insight (2-3 sentences max)"
+}}
+
+NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
+                placeholders={
+                    "landmarks_data": "Facial landmarks data to analyze"
+                }
             )
         }
     
@@ -312,6 +343,25 @@ Answer: {answer}""",
             job_role=interview_session.jobRole,
             job_level=interview_session.jobLevel,
             question_type=interview_session.questionType
+        )
+    
+    def get_facial_landmarks_analysis_prompt(self, landmarks_data) -> str:
+        """
+        Get a secure facial landmarks analysis prompt with sanitized data.
+        
+        Args:
+            landmarks_data: The facial landmarks data to analyze
+            
+        Returns:
+            str: Secure prompt with sanitized data
+            
+        Raises:
+            ValueError: If data validation fails
+        """
+        template = self._templates["facial_landmarks_analysis"]
+        
+        return template.render(
+            landmarks_data=landmarks_data
         )
 
 # Global instance for reuse across the application

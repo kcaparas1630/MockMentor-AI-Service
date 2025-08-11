@@ -32,6 +32,7 @@ Author: @kcaparas1630
 
 import os
 from openai import AsyncOpenAI
+from app.core.ai_client_manager import ai_client_manager
 from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
 from typing import Dict, List
@@ -112,13 +113,9 @@ class MainConversationService:
         """
         if cls._instance is None:
             cls._instance = super(MainConversationService, cls).__new__(cls)
-            # Initialize the instance with Nebius API client
-            api_key = os.getenv("NEBIUS_API_KEY")
-            if not api_key:
-                raise RuntimeError("NEBIUS_API_KEY environment variable is not set")
-            cls._instance.client = AsyncOpenAI(
-                base_url="https://api.studio.nebius.com/v1",
-                api_key=api_key)
+            # Use dedicated client for conversation services
+            cls._instance.client = ai_client_manager.get_conversation_client()
+            cls._instance.text_analysis_client = ai_client_manager.get_text_analysis_client()
         return cls._instance
     
 
