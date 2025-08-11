@@ -33,6 +33,8 @@ from app.services.main_conversation.tools.websocket_utils.handle_user_message im
 from app.services.transcription.transcriber import TranscriberService
 from app.errors.exceptions import InternalServerError
 from app.services.transcription.audio_buffer import IncrementalAudioBuffer
+from app.services.facial_landmarks_analysis.facial_landmarks_analysis import facial_landmarks_analyzer
+from app.core.ai_client_manager import get_facial_analysis_client
 import asyncio
 from typing import Optional
 import time
@@ -45,7 +47,7 @@ async def send_websocket_message(websocket: WebSocket, message_type: str, conten
           content=content,
           state=state,
           next_question=next_question,
-          timeStamp=str(int(time.time() * 1000))  # Add this line
+          timestamp=str(int(time.time() * 1000))  # Add this line
       ).model_dump())
 
 async def send_error_message(websocket: WebSocket, error_message: str):
@@ -53,7 +55,7 @@ async def send_error_message(websocket: WebSocket, error_message: str):
     await websocket.send_json({
         "type": "error",
         "content": error_message,
-        "timeStamp": str(int(time.time() * 1000))
+        "timestamp": str(int(time.time() * 1000))
     })
 
 async def safe_transcribe(transcriber: TranscriberService, audio_data: str) -> Optional[str]:
@@ -92,7 +94,7 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
         await websocket.send_json({
             "type": "transcript",
             "content": transcript,
-            "timeStamp": str(int(time.time() * 1000))  # Add this line
+            "timestamp": str(int(time.time() * 1000))  # Add this line
         })
         transcript_send_time = time.time() - transcript_send_start
         logger.debug(f"Sent transcript to client in {transcript_send_time:.3f}s")
@@ -150,7 +152,7 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 "content": combined_message,
                 "state": session_state,
                 "next_question": next_question_data,
-                "timeStamp": str(int(time.time() * 1000))
+                "timestamp": str(int(time.time() * 1000))
             }
             
             await websocket.send_json(comprehensive_response)
@@ -170,7 +172,7 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 "content": response_data["feedback"],
                 "message": response_data["message"],
                 "state": session_state,
-                "timeStamp": str(int(time.time() * 1000))
+                "timestamp": str(int(time.time() * 1000))
             })
         else:
             await send_websocket_message(websocket, "message", response, session_state)
@@ -222,7 +224,7 @@ async def handle_websocket_connection(websocket: WebSocket):
                         "type": "heartbeat",
                         "content": "pong",
                         "timestamp": raw_message.get("timestamp"),
-                        "timeStamp": str(int(time.time() * 1000))
+                        "timestamp": str(int(time.time() * 1000))
                     })
                     continue
                 
@@ -273,38 +275,114 @@ async def handle_websocket_connection(websocket: WebSocket):
                     continue
                 
                 if message_type == "audio_end":
-                    audio_end_start = time.time()
                     logger.info("Received audio_end signal from client.")
                     
-                    # Force final transcription if we have any remaining chunks
-                    if audio_buffer.has_chunks():
-                        final_audio_prep_start = time.time()
-                        final_audio = audio_buffer.get_final_audio_data()
-                        final_audio_prep_time = time.time() - final_audio_prep_start
-                        logger.debug(f"Final audio preparation took {final_audio_prep_time:.3f}s")
+                    # Process audio_end in background to not block other messages
+                    async def process_audio_end():
+                        audio_end_start = time.time()
                         
-                        if final_audio:
-                            logger.debug(f"Processing final transcription with {len(audio_buffer.chunks)} chunks, audio size: {len(final_audio)} chars")
+                        # Force final transcription if we have any remaining chunks
+                        if audio_buffer.has_chunks():
+                            final_audio_prep_start = time.time()
+                            final_audio = audio_buffer.get_final_audio_data()
+                            final_audio_prep_time = time.time() - final_audio_prep_start
+                            logger.debug(f"Final audio preparation took {final_audio_prep_time:.3f}s")
                             
-                            final_transcription_start = time.time()
-                            transcript = await safe_transcribe(transcriber, final_audio)
-                            final_transcription_time = time.time() - final_transcription_start
-                            logger.debug(f"Final transcription took {final_transcription_time:.3f}s")
-                            
-                            if transcript:
-                                logger.info(f"Final transcript ({len(transcript)} chars): {transcript}")
+                            if final_audio:
+                                logger.debug(f"Processing final transcription with {len(audio_buffer.chunks)} chunks, audio size: {len(final_audio)} chars")
                                 
-                                # Process the transcript (send to client + AI processing)
-                                await process_transcript(transcript, websocket, session)
-                            else:
-                                logger.warning("Final transcription failed or returned empty result")
+                                final_transcription_start = time.time()
+                                transcript = await safe_transcribe(transcriber, final_audio)
+                                final_transcription_time = time.time() - final_transcription_start
+                                logger.debug(f"Final transcription took {final_transcription_time:.3f}s")
+                                
+                                if transcript:
+                                    logger.info(f"Final transcript ({len(transcript)} chars): {transcript}")
+                                    
+                                    # Process the transcript (send to client + AI processing)
+                                    await process_transcript(transcript, websocket, session)
+                                else:
+                                    logger.warning("Final transcription failed or returned empty result")
+                        
+                        # Clear the buffer and reset state
+                        audio_buffer.clear()
+                        nonlocal last_incremental_transcript
+                        last_incremental_transcript = ""
+                        
+                        total_audio_end_time = time.time() - audio_end_start
+                        logger.info(f"Complete audio_end processing took {total_audio_end_time:.3f}s")
                     
-                    # Clear the buffer and reset state
-                    audio_buffer.clear()
-                    last_incremental_transcript = ""
+                    # Run audio processing in background with error handling
+                    async def process_audio_end_with_error_handling():
+                        try:
+                            await process_audio_end()
+                        except Exception as e:
+                            logger.error(f"Error in background audio processing: {e}")
+                            import traceback
+                            logger.error(f"Full traceback: {traceback.format_exc()}")
+                            # Optionally notify client of processing error
+                            try:
+                                await send_error_message(websocket, "Audio processing failed")
+                            except:
+                                pass  # WebSocket might be closed
                     
-                    total_audio_end_time = time.time() - audio_end_start
-                    logger.info(f"Complete audio_end processing took {total_audio_end_time:.3f}s")
+                    task = asyncio.create_task(
+                        process_audio_end_with_error_handling(),
+                        name=f"audio_end_processing_{session.session_id if session else 'unknown'}"
+                    )
+                    logger.debug(f"Created background task: {task.get_name()}")
+                    continue
+
+                if message_type == "behavioral_analysis":
+                    logger.info("Received behavioral analysis request from client.")
+                    logger.debug(f"Behavioral analysis data: {raw_message}")
+                    
+                    # Extract landmarks data from the message
+                    landmarks_data = raw_message.get("landmarks", [])
+                    
+                    # Validate landmarks data
+                    if not landmarks_data or len(landmarks_data) == 0:
+                        logger.warning("Empty landmarks data received")
+                        await send_error_message(websocket, "No landmarks data provided for behavioral analysis")
+                        continue
+                    
+                    logger.debug(f"Received {len(landmarks_data)} landmark frames")
+                    logger.debug(f"Sample landmark frame: {landmarks_data[0] if landmarks_data else 'None'}")
+                    
+                    # Validate first frame structure (client sends timeStamp in camelCase)
+                    if landmarks_data and not all(key in landmarks_data[0] for key in ["confidence", "timeStamp", "landmarks"]):
+                        logger.warning("Invalid landmarks data structure")
+                        await send_error_message(websocket, "Invalid landmarks data format")
+                        continue
+                    
+                    # Convert landmarks data to a format suitable for analysis
+                    landmarks_summary = {
+                        "total_frames": len(landmarks_data),
+                        "confidence_scores": [frame.get("confidence", 0) for frame in landmarks_data],
+                        "timestamps": [frame.get("timeStamp", 0) for frame in landmarks_data],
+                        "sample_landmarks": landmarks_data[0].get("landmarks", [[]])[0] if landmarks_data and landmarks_data[0].get("landmarks") else []
+                    }
+                    
+                    try:
+                        # Use dedicated facial analysis client for better performance
+                        facial_analysis_client = get_facial_analysis_client()
+                        analysis_result = await facial_landmarks_analyzer.analyze_landmarks(
+                            facial_analysis_client,
+                            str(landmarks_summary)
+                        )
+                        
+                        # Send analysis result back to client
+                        await websocket.send_json({
+                            "type": "behavioral_feedback",
+                            "content": analysis_result.get("feedback", "Analysis complete"),
+                            "data": analysis_result,
+                            "timestamp": str(int(time.time() * 1000))
+                        })
+                        
+                    except Exception as e:
+                        logger.error(f"Error in behavioral analysis: {e}")
+                        await send_error_message(websocket, "Failed to process behavioral analysis")
+                    
                     continue
                 
                 # Handle legacy full audio blob (for backward compatibility)
