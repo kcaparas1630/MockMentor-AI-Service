@@ -34,7 +34,7 @@ from app.services.transcription.transcriber import TranscriberService
 from app.errors.exceptions import InternalServerError
 from app.services.transcription.audio_buffer import IncrementalAudioBuffer
 from app.services.facial_landmarks_analysis.facial_landmarks_analysis import facial_landmarks_analyzer
-from app.core.ai_client_manager import ai_client_manager
+from app.core.ai_client_manager import get_facial_analysis_client
 import asyncio
 from typing import Optional
 import time
@@ -342,7 +342,7 @@ async def handle_websocket_connection(websocket: WebSocket):
                     
                     try:
                         # Use dedicated facial analysis client for better performance
-                        facial_analysis_client = ai_client_manager.get_facial_analysis_client()
+                        facial_analysis_client = get_facial_analysis_client()
                         analysis_result = await facial_landmarks_analyzer.analyze_landmarks(
                             facial_analysis_client,
                             str(landmarks_summary)

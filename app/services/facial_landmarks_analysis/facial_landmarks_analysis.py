@@ -20,7 +20,7 @@ Author: @kcaparas1630
 
 from openai import AsyncOpenAI
 from app.core.secure_prompt_manager import secure_prompt_manager
-from app.core.ai_client_manager import ai_client_manager
+from app.core.ai_client_manager import get_facial_analysis_client
 import logging
 import json
 import time
@@ -59,7 +59,7 @@ class FacialLandmarksAnalysis:
             
             # Use dedicated client if not provided
             if client is None:
-                client = ai_client_manager.get_facial_analysis_client()
+                client = get_facial_analysis_client()
                 logger.debug("Using dedicated facial analysis client")
             else:
                 logger.debug("Using provided client for facial analysis")

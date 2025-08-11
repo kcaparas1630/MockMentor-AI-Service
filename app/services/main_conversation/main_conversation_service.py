@@ -32,7 +32,7 @@ Author: @kcaparas1630
 
 import os
 from openai import AsyncOpenAI
-from app.core.ai_client_manager import ai_client_manager
+from app.core.ai_client_manager import get_conversation_client, get_text_analysis_client
 from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
 from typing import Dict, List
@@ -113,9 +113,9 @@ class MainConversationService:
         """
         if cls._instance is None:
             cls._instance = super(MainConversationService, cls).__new__(cls)
-            # Use dedicated client for conversation services
-            cls._instance.client = ai_client_manager.get_conversation_client()
-            cls._instance.text_analysis_client = ai_client_manager.get_text_analysis_client()
+            # Use dedicated client for conversation services (lazy initialization)
+            cls._instance.client = get_conversation_client()
+            cls._instance.text_analysis_client = get_text_analysis_client()
         return cls._instance
     
 
