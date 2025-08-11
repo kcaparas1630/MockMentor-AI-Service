@@ -27,19 +27,21 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def sanitize_text(text: str) -> str:
+def sanitize_text(text: str, max_length: int = 1000, escape_html: bool = True) -> str:
     """
     Sanitize text input to prevent injection attacks and ensure data safety.
     
     This function performs multiple sanitization steps:
-    1. HTML entity encoding to prevent XSS
+    1. Optional HTML entity encoding to prevent XSS
     2. Strips leading/trailing whitespace
     3. Removes null bytes and other control characters
-    4. Limits length to prevent DoS attacks
+    4. Configurable length limiting to prevent DoS attacks
     5. Normalizes unicode characters
     
     Args:
         text (str): The text to sanitize
+        max_length (int): Maximum allowed length (default: 1000)
+        escape_html (bool): Whether to HTML escape the text (default: True)
         
     Returns:
         str: The sanitized text
@@ -53,8 +55,9 @@ def sanitize_text(text: str) -> str:
     # Convert to string if not already
     text = str(text)
     
-    # HTML entity encoding to prevent XSS
-    text = html.escape(text)
+    # Optional HTML entity encoding to prevent XSS
+    if escape_html:
+        text = html.escape(text)
     
     # Strip leading/trailing whitespace
     text = text.strip()
@@ -62,9 +65,10 @@ def sanitize_text(text: str) -> str:
     # Remove null bytes and other control characters (except newlines and tabs)
     text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
     
-    # Limit length to prevent DoS attacks (max 1000 characters)
-    if len(text) > 1000:
-        text = text[:1000]
+    # Configurable length limiting to prevent DoS attacks
+    if len(text) > max_length:
+        text = text[:max_length]
+        logger.warning(f"Text truncated to {max_length} characters for security")
     
     # Normalize unicode characters
     text = text.encode('utf-8', errors='ignore').decode('utf-8')
@@ -80,6 +84,7 @@ class PromptTemplate:
     """Secure prompt template with placeholders for safe data injection."""
     template: str
     placeholders: Dict[str, str]
+    sanitization_config: Dict[str, Dict] = None  # Per-placeholder sanitization config
     
     def render(self, **kwargs) -> str:
         """
@@ -99,11 +104,16 @@ class PromptTemplate:
         if missing_placeholders:
             raise ValueError(f"Missing required placeholders: {missing_placeholders}")
         
-        # Sanitize all input data
+        # Sanitize all input data with configurable options
         sanitized_data = {}
         for key, value in kwargs.items():
             if key in self.placeholders:
-                sanitized_data[key] = sanitize_text(str(value))
+                # Get sanitization config for this placeholder
+                config = self.sanitization_config.get(key, {}) if self.sanitization_config else {}
+                max_length = config.get('max_length', 1000)
+                escape_html = config.get('escape_html', True)
+                
+                sanitized_data[key] = sanitize_text(str(value), max_length=max_length, escape_html=escape_html)
             else:
                 # Skip unknown keys to prevent injection
                 logger.warning(f"Unknown placeholder key: {key}")
@@ -294,6 +304,12 @@ RETURN ONLY THIS JSON FORMAT:
 NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
                 placeholders={
                     "landmarks_data": "Facial landmarks data to analyze"
+                },
+                sanitization_config={
+                    "landmarks_data": {
+                        "max_length": 10000,  # Allow larger landmarks data (10k chars)
+                        "escape_html": False   # Don't HTML escape to preserve JSON readability
+                    }
                 }
             )
         }
