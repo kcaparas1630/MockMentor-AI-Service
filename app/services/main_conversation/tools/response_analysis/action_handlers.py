@@ -80,6 +80,8 @@ async def handle_continue_action(
         reset_question_attempts_func(session_state)
         
         # Return structured response with next question data
+        # TODO: REMOVE - This builds response data with text analysis feedback for immediate client sending
+        # Should be replaced with unified feedback logic using stored session analysis
         response_data = {
             "type": "next_question",
             "feedback_formatted": feedback_text,
@@ -136,6 +138,8 @@ async def advance_to_next_question_with_message(
         logger.info(f"Feedback and next question message: {feedback_text + next_message}")
         
         # Return structured response with next question data
+        # TODO: REMOVE - This builds retry response data with text analysis feedback for immediate client sending
+        # Should be replaced with unified feedback logic using stored session analysis
         response_data = {
             "type": "next_question",
             "feedback_formatted": feedback_text,

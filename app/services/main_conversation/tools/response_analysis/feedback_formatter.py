@@ -29,6 +29,8 @@ def format_feedback_response(analysis_response: InterviewFeedbackFormatterRespon
         >>> response = format_feedback_response(analysis_response)
         >>> print(response)  # "Great job! Your answer was comprehensive..."
     """
+    # TODO: REMOVE - This function formats text analysis response for immediate client sending
+    # Once we implement unified feedback with stored session analysis, this should be removed
     # Generate opening line based on score
     opening_line = get_feedback_opening_line(analysis_response.score)
     

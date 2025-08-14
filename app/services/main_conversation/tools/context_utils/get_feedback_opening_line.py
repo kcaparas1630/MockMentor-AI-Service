@@ -1,3 +1,5 @@
+# TODO: REMOVE - This generates opening lines for immediate text analysis feedback
+# Should be replaced with unified feedback logic using stored session analysis
 def get_feedback_opening_line(score: int) -> str:
     """
     Generate an appropriate opening line for interview feedback based on score.

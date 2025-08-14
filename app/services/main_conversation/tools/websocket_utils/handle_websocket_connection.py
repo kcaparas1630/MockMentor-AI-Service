@@ -147,6 +147,8 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
             combined_message = f"{formatted_feedback} {next_action_message}".strip()
             
             # Create response with just the essential data for continue action
+            # TODO: REMOVE - This sends text analysis feedback directly to WebSocket client
+            # Should be replaced with unified feedback logic using stored session analysis
             comprehensive_response = {
                 "type": "next_question",
                 "content": combined_message,
@@ -167,6 +169,8 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 await send_error_message(websocket, "Invalid INTERVIEW_COMPLETE data format")
                 return
             
+            # TODO: REMOVE - This sends text analysis feedback in interview completion to WebSocket client
+            # Should be replaced with unified feedback logic using stored session analysis
             await websocket.send_json({
                 "type": "interview_complete",
                 "content": response_data["feedback"],
