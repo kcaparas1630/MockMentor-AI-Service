@@ -14,12 +14,13 @@ Author: @kcaparas1630
 from typing import Dict, List
 from loguru import logger
 import json
+from app.schemas.session_evaluation_schemas import SessionState
 
 async def handle_retry_action(
     session_id: str,
     analysis_response,
     feedback_text: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     add_to_context_func,
@@ -30,8 +31,8 @@ async def handle_retry_action(
     """Handle retry actions when technical issues are detected."""
     logger.debug(f"[RETRY] Session {session_id}: retry_attempts={session_state.get('retry_attempts', 0)}")
     
-    if session_state["retry_attempts"] < 1:
-        session_state["retry_attempts"] += 1
+    if session_state.retry_attempts < 1:
+        session_state.retry_attempts += 1
         retry_message = analysis_response.next_action.message
         add_to_context_func(session_id, "assistant", retry_message)
         logger.info(f"Feedback and retry message: {feedback_text + retry_message}")
@@ -55,7 +56,7 @@ async def handle_continue_action(
     session_id: str,
     analysis_response,
     feedback_text: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     add_to_context_func,
@@ -75,7 +76,7 @@ async def handle_continue_action(
         
         next_message = f"Here's your next question: {next_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
         add_to_context_func(session_id, "assistant", next_message)
-        session_state["waiting_for_answer"] = True
+        session_state.waiting_for_answer = True
         reset_question_attempts_func(session_state)
         
         # Return structured response with next question data
@@ -94,7 +95,7 @@ async def handle_continue_action(
         
         return f"NEXT_QUESTION:{json.dumps(response_data)}"
     else:
-        session_state["waiting_for_answer"] = False
+        session_state.waiting_for_answer = False
         end_message = "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
         logger.info(f"Feedback and end message: {feedback_text + end_message}")
@@ -112,7 +113,7 @@ async def handle_continue_action(
 async def advance_to_next_question_with_message(
     session_id: str,
     feedback_text: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     add_to_context_func,
@@ -130,7 +131,7 @@ async def advance_to_next_question_with_message(
         current_index = current_question_index[session_id]
         total_questions = len(session_questions[session_id])
         add_to_context_func(session_id, "assistant", next_message)
-        session_state["waiting_for_answer"] = True
+        session_state.waiting_for_answer = True
         reset_question_attempts_func(session_state)
         logger.info(f"Feedback and next question message: {feedback_text + next_message}")
         
@@ -150,7 +151,7 @@ async def advance_to_next_question_with_message(
         return f"NEXT_QUESTION:{json.dumps(response_data)}"
     # If no more questions, end the interview
     else:
-        session_state["waiting_for_answer"] = False
+        session_state.waiting_for_answer = False
         end_message = "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
         # Return structured response for interview completion
@@ -161,6 +162,6 @@ async def advance_to_next_question_with_message(
         }
         return f"INTERVIEW_COMPLETE:{json.dumps(response_data)}"
 
-def reset_question_attempts(session_state: Dict) -> None:
+def reset_question_attempts(session_state: SessionState) -> None:
     """Reset retry attempts for a new question."""
-    session_state["retry_attempts"] = 0
+    session_state.retry_attempts = 0

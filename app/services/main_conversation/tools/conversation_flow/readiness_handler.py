@@ -13,12 +13,13 @@ Author: @kcaparas1630
 
 from typing import Dict, List
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
+from app.schemas.session_evaluation_schemas import SessionState
 
 
 def handle_readiness_check(
     session_id: str, 
     user_message: str, 
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     add_to_context_func
@@ -29,7 +30,7 @@ def handle_readiness_check(
     Args:
         session_id (str): The session identifier.
         user_message (str): The user's message.
-        session_state (Dict): The current session state.
+        session_state (SessionState): The current session state.
         session_questions (Dict[str, List[str]]): Questions for each session.
         current_question_index (Dict[str, int]): Current question index for each session.
         add_to_context_func: Function to add messages to conversation context.
@@ -45,8 +46,8 @@ def handle_readiness_check(
     ready_keywords = ["yes", "ready", "i'm ready", "let's start", "let's go"]
     
     if user_message and any(keyword in user_message.lower() for keyword in ready_keywords):
-        session_state["ready"] = True
-        session_state["waiting_for_answer"] = True
+        session_state.ready = True
+        session_state.waiting_for_answer = True
         current_question = get_current_question(session_id, session_questions, current_question_index)
         response = f"Great! I'm excited to see how you do. Here's your first question {current_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
         add_to_context_func(session_id, "assistant", response)

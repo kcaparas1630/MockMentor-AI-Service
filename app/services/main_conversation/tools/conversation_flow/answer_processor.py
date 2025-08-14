@@ -17,6 +17,7 @@ Author: @kcaparas1630
 from typing import Dict, List
 from app.services.speech_to_text.text_answers_service import TextAnswersService
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
+from app.schemas.session_evaluation_schemas import SessionState
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
 from app.services.main_conversation.tools.question_utils.save_answer import save_answer
 from app.errors.exceptions import BadRequest
@@ -26,7 +27,7 @@ from loguru import logger
 async def process_user_answer(
     session_id: str,
     user_message: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     client,
@@ -68,7 +69,7 @@ async def process_user_answer(
     # Get current question and session metadata
     current_question = get_current_question(session_id, session_questions, current_question_index)
     current_index = current_question_index.get(session_id, 0)
-    session_metadata = session_state["session_metadata"]
+    session_metadata = session_state.session_metadata
     
     # Analyze the user's response
     logger.info(f"[FLOW_DEBUG] About to call analyze_user_response() for session {session_id}")
@@ -93,9 +94,9 @@ async def process_user_answer(
         answer=user_message,
         question_index=current_index,
         metadata={
-            "jobRole": session_metadata["jobRole"],
-            "jobLevel": session_metadata["jobLevel"], 
-            "questionType": session_metadata["questionType"]
+            "jobRole": session_metadata.jobRole,
+            "jobLevel": session_metadata.jobLevel, 
+            "questionType": session_metadata.questionType
         },
         feedback_data=feedback_data,
         session_question_data=session_question_data
@@ -113,7 +114,7 @@ async def process_user_answer(
 async def analyze_user_response(
     session_id: str,
     user_message: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     client
@@ -132,14 +133,14 @@ async def analyze_user_response(
     Returns:
         Analysis response from TextAnswersService.
     """
-    session_metadata = session_state["session_metadata"]
+    session_metadata = session_state.session_metadata
     current_question = get_current_question(session_id, session_questions, current_question_index)
     
     analysis_request = InterviewAnalysisRequest(
-        jobRole=session_metadata["jobRole"],
-        jobLevel=session_metadata["jobLevel"],
-        interviewType=session_metadata["questionType"],
-        questionType=session_metadata["questionType"],
+        jobRole=session_metadata.jobRole,
+        jobLevel=session_metadata.jobLevel,
+        interviewType=session_metadata.questionType,
+        questionType=session_metadata.questionType,
         question=current_question,
         answer=user_message
     )
