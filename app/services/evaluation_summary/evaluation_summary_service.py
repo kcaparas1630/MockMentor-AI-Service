@@ -65,14 +65,10 @@ class EvaluationSummaryService:
             Exception: If API call fails
         """
         try:
-            # Convert results to dicts for the prompt manager
-            text_analysis_dict = text_analysis.model_dump()
-            facial_analysis_dict = facial_analysis.model_dump()
-            
-            # Generate secure prompt using the prompt manager
+            # Generate secure prompt using the prompt manager (pass objects directly)
             prompt = secure_prompt_manager.get_summarization_prompt(
-                text_analysis=text_analysis_dict,
-                facial_analysis=facial_analysis_dict
+                text_analysis=text_analysis,
+                facial_analysis=facial_analysis
             )
             
             logger.debug(f"Generated summarization prompt for score {text_analysis.score}")
