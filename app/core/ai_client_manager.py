@@ -87,6 +87,10 @@ class AIClientManager:
                     "transcription": AsyncOpenAI(
                         base_url=base_url,
                         api_key=api_key
+                    ),
+                    "evaluation_summary": AsyncOpenAI(
+                        base_url=base_url,
+                        api_key=api_key
                     )
                 }
                 
@@ -103,7 +107,7 @@ class AIClientManager:
         
         Args:
             service_type (str): Type of service ("text_analysis", "facial_analysis", 
-                              "conversation", "transcription")
+                              "conversation", "transcription", "evaluation_summary")
                               
         Returns:
             AsyncOpenAI: Dedicated client instance for the service
@@ -181,3 +185,7 @@ def get_conversation_client() -> AsyncOpenAI:
 def get_transcription_client() -> AsyncOpenAI:
     """Get dedicated client for transcription services."""
     return get_ai_client_manager().get_transcription_client()
+
+def get_evaluation_summary_client() -> AsyncOpenAI:
+    """Get dedicated client for evaluation summary services."""
+    return get_ai_client_manager().get_client("evaluation_summary")
