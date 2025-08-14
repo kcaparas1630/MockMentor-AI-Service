@@ -374,12 +374,15 @@ async def handle_websocket_connection(websocket: WebSocket):
                             facial_analysis_client,
                             str(landmarks_summary)
                         )
-                        
-                        # Send analysis result back to client
+                        current_session_state = service._session_state_dict.get_session(session.session_id)
+                        if current_session_state:
+                            current_session_state.set_facial_analysis(analysis_result)
+                        else:
+                            logger.warning(f"Session state not found for session {session.session_id}, cannot store analysis result")
+                        # Send acknowledgement that facial analysis was processed. NOT MANDATORY BUT A GOOD USER FEEDBACK
                         await websocket.send_json({
-                            "type": "behavioral_feedback",
-                            "content": analysis_result.get("feedback", "Analysis complete"),
-                            "data": analysis_result,
+                            "type": "behavioural_feedback_processed",
+                            "content": "Behavioral analysis processed successfully",
                             "timestamp": str(int(time.time() * 1000))
                         })
                         
