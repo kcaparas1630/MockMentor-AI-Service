@@ -15,6 +15,7 @@ from typing import Dict, List
 from loguru import logger
 import json
 from app.schemas.session_evaluation_schemas import SessionState
+from app.services.main_conversation.tools.unified_feedback import check_and_generate_unified_feedback
 
 async def handle_retry_action(
     session_id: str,
@@ -29,7 +30,7 @@ async def handle_retry_action(
     reset_question_attempts_func
 ) -> str:
     """Handle retry actions when technical issues are detected."""
-    logger.debug(f"[RETRY] Session {session_id}: retry_attempts={session_state.get('retry_attempts', 0)}")
+    logger.debug(f"[RETRY] Session {session_id}: retry_attempts={session_state.retry_attempts}")
     
     if session_state.retry_attempts < 1:
         session_state.retry_attempts += 1
@@ -66,6 +67,14 @@ async def handle_continue_action(
 ) -> str:
     """Handle continue actions to advance to the next question."""
     
+    # Check for unified feedback before advancing to next question
+    unified_feedback = await check_and_generate_unified_feedback(session_state, session_id)
+    if not unified_feedback:
+        logger.error(f"[ERROR] Failed to generate unified feedback for session {session_id}")
+        final_feedback = "I apologize, but there was an issue processing your response. Please try again."
+    else:
+        final_feedback = unified_feedback
+    
     advance_to_next_question_func(session_id, current_question_index)
     
     # Check if more questions remain
@@ -79,12 +88,10 @@ async def handle_continue_action(
         session_state.waiting_for_answer = True
         reset_question_attempts_func(session_state)
         
-        # Return structured response with next question data
-        # TODO: REMOVE - This builds response data with text analysis feedback for immediate client sending
-        # Should be replaced with unified feedback logic using stored session analysis
+        # Return structured response with next question data and unified feedback when available
         response_data = {
             "type": "next_question",
-            "feedback_formatted": feedback_text,
+            "feedback_formatted": final_feedback,
             "next_action_message": analysis_response.next_action.message,
             "next_question": {
                 "question": next_question,
@@ -125,6 +132,15 @@ async def advance_to_next_question_with_message(
     analysis_response=None
 ) -> str:
     """Helper method to advance to next question with a custom prefix message."""
+    
+    # Check for unified feedback before advancing to next question
+    unified_feedback = await check_and_generate_unified_feedback(session_state, session_id)
+    if not unified_feedback:
+        logger.error(f"[ERROR] Failed to generate unified feedback for session {session_id}")
+        final_feedback = "I apologize, but there was an issue processing your response. Please try again."
+    else:
+        final_feedback = unified_feedback
+    
     advance_to_next_question_func(session_id, current_question_index)
     
     if current_question_index[session_id] < len(session_questions[session_id]):
@@ -137,12 +153,10 @@ async def advance_to_next_question_with_message(
         reset_question_attempts_func(session_state)
         logger.info(f"Feedback and next question message: {feedback_text + next_message}")
         
-        # Return structured response with next question data
-        # TODO: REMOVE - This builds retry response data with text analysis feedback for immediate client sending
-        # Should be replaced with unified feedback logic using stored session analysis
+        # Return structured response with next question data and unified feedback when available
         response_data = {
             "type": "next_question",
-            "feedback_formatted": feedback_text,
+            "feedback_formatted": final_feedback,
             "next_action_message": analysis_response.next_action.message if analysis_response else "",
             "next_question": {
                 "question": next_question,

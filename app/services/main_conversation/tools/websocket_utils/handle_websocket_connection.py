@@ -35,6 +35,7 @@ from app.errors.exceptions import InternalServerError
 from app.services.transcription.audio_buffer import IncrementalAudioBuffer
 from app.services.facial_landmarks_analysis.facial_landmarks_analysis import facial_landmarks_analyzer
 from app.core.ai_client_manager import get_facial_analysis_client
+from app.services.main_conversation.tools.unified_feedback import store_facial_analysis_and_check_unified_feedback
 import asyncio
 from typing import Optional
 import time
@@ -139,19 +140,14 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 "totalQuestions": response_data["next_question"]["totalQuestions"],
                 "questionIndex": response_data["next_question"]["questionIndex"]
             }
-            # Use the complete formatted feedback (which includes opening line, feedback, strengths, tips)
-            formatted_feedback = response_data["feedback_formatted"]
+            # Get next action message (feedback now sent separately via unified_feedback)
             next_action_message = response_data.get("next_action_message", "")
+            message_content = response_data.get("message", "")
             
-            # Combine formatted feedback with next action message
-            combined_message = f"{formatted_feedback} {next_action_message}".strip()
-            
-            # Create response with just the essential data for continue action
-            # TODO: REMOVE - This sends text analysis feedback directly to WebSocket client
-            # Should be replaced with unified feedback logic using stored session analysis
+            # Create response with question progression data only
             comprehensive_response = {
                 "type": "next_question",
-                "content": combined_message,
+                "content": f"{next_action_message} {message_content}".strip(),
                 "state": session_state,
                 "next_question": next_question_data,
                 "timestamp": str(int(time.time() * 1000))
@@ -211,7 +207,8 @@ async def handle_websocket_connection(websocket: WebSocket):
         service = MainConversationService()
         
         response: str = await service.conversation_with_user_response(session)
-        session_state = service._session_state.get(session.session_id, {})
+        session_state_obj = service._session_state_dict.get_session(session.session_id)
+        session_state = session_state_obj.model_dump() if session_state_obj else {}
         await send_websocket_message(websocket, "message", response, session_state)
         
         while True:
@@ -359,6 +356,12 @@ async def handle_websocket_connection(websocket: WebSocket):
                         await send_error_message(websocket, "Invalid landmarks data format")
                         continue
                     
+                    # Check if user is ready for interview before performing facial analysis
+                    current_session_state = service._session_state_dict.get_session(session.session_id)
+                    if not current_session_state or not current_session_state.ready:
+                        logger.info(f"Skipping facial analysis for session {session.session_id} - user not ready for interview")
+                        continue
+                    
                     # Convert landmarks data to a format suitable for analysis
                     landmarks_summary = {
                         "total_frames": len(landmarks_data),
@@ -374,17 +377,13 @@ async def handle_websocket_connection(websocket: WebSocket):
                             facial_analysis_client,
                             str(landmarks_summary)
                         )
-                        current_session_state = service._session_state_dict.get_session(session.session_id)
-                        if current_session_state:
-                            current_session_state.set_facial_analysis(analysis_result)
-                        else:
-                            logger.warning(f"Session state not found for session {session.session_id}, cannot store analysis result")
-                        # Send acknowledgement that facial analysis was processed. NOT MANDATORY BUT A GOOD USER FEEDBACK
-                        await websocket.send_json({
-                            "type": "behavioural_feedback_processed",
-                            "content": "Behavioral analysis processed successfully",
-                            "timestamp": str(int(time.time() * 1000))
-                        })
+                        
+                        # Store facial analysis result - unified feedback will be generated in action handlers
+                        # (reusing current_session_state from readiness check above)
+                        await store_facial_analysis_and_check_unified_feedback(
+                            current_session_state, session.session_id, analysis_result
+                        )
+                        logger.info(f"[FACIAL_ANALYSIS] Stored facial analysis result for session {session.session_id}")
                         
                     except Exception as e:
                         logger.error(f"Error in behavioral analysis: {e}")
