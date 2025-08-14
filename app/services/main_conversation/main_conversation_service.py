@@ -47,7 +47,6 @@ from app.services.main_conversation.tools.conversation_flow import (
     process_user_answer
 )
 from app.services.main_conversation.tools.response_analysis import (
-    format_feedback_response,
     handle_next_action
 )
 from app.services.main_conversation.tools.response_analysis.action_handlers import reset_question_attempts
@@ -75,7 +74,7 @@ class MainConversationService:
         _conversation_contexts: Dictionary mapping session IDs to conversation histories
         _session_questions: Dictionary storing questions for each session
         _current_question_index: Dictionary tracking the current question index for each session
-        _session_state: Dictionary tracking session state for each session
+        _session_state_dict: Dictionary tracking session state for each session
         
     Example Usage:
         # Initialize a new session
@@ -215,7 +214,7 @@ class MainConversationService:
             )
             
             # Initialize typed session state
-            session_state = self._session_state_dict.create_session(session_id, session_metadata)
+            self._session_state_dict.create_session(session_id, session_metadata)
             
             # Fetch and store questions
             await fetch_and_store_questions(interview_session, self._session_questions, self._current_question_index, self._session_question_data)
@@ -286,7 +285,7 @@ class MainConversationService:
                 return await process_user_answer(
                     session_id, last_user_message, session_state,
                     self._session_questions, self._current_question_index, self.text_analysis_client,
-                    self.add_to_context, format_feedback_response,
+                    self.add_to_context,
                     lambda session_id, analysis_response, feedback_text, session_state: handle_next_action(
                         session_id, analysis_response, feedback_text, session_state,
                         self._session_questions, self._current_question_index,
