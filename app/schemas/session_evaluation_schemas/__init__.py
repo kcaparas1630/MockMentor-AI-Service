@@ -1,10 +1,9 @@
 from .interview_analysis_request import InterviewAnalysisRequest
-from .interview_feedback_response import InterviewFeedbackFormatterResponse
 from .interview_request import InterviewRequest
 from .session_state import (
     SessionState, 
     SessionMetadata, 
-    TextAnalysisResult, 
+    InterviewFeedbackResponse, 
     FacialAnalysisResult, 
     PendingAnalyses, 
     NextAction,
@@ -18,7 +17,7 @@ __all__ = [
     "InterviewRequest",
     "SessionState",
     "SessionMetadata",
-    "TextAnalysisResult",
+    "InterviewFeedbackResponse",
     "FacialAnalysisResult", 
     "PendingAnalyses",
     "NextAction",
