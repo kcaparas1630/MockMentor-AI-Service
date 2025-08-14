@@ -41,10 +41,10 @@ class NextAction(BaseModel):
     message: str = Field(..., description="Message to display to the user")
 
 
-class TextAnalysisResult(BaseModel):
+class InterviewFeedbackResponse(BaseModel):
     """Results from text analysis of user's answer."""
     score: int = Field(..., ge=0, le=10, description="Interview response score (0-10)")
-    feedback: str = Field(..., description="Brief summary feedback (2-3 sentences)")
+    feedback: str = Field(default="", description="Brief summary feedback (2-3 sentences)")
     strengths: List[str] = Field(default_factory=list, description="User's identified strengths")
     tips: List[str] = Field(default_factory=list, description="Tips for improvement")
     technical_issue_detected: bool = Field(default=False, description="Whether technical issues were detected")
@@ -59,7 +59,7 @@ class FacialAnalysisResult(BaseModel):
 
 class PendingAnalyses(BaseModel):
     """Container for tracking pending analysis results."""
-    text_analysis: Optional[TextAnalysisResult] = Field(default=None, description="Text analysis result")
+    text_analysis: Optional[InterviewFeedbackResponse] = Field(default=None, description="Text analysis result")
     facial_analysis: Optional[FacialAnalysisResult] = Field(default=None, description="Facial analysis result")
     text_status: AnalysisStatus = Field(default=AnalysisStatus.PENDING, description="Text analysis status")
     facial_status: AnalysisStatus = Field(default=AnalysisStatus.PENDING, description="Facial analysis status")
@@ -96,7 +96,7 @@ class SessionState(BaseModel):
         """Initialize pending analyses for coordination."""
         self.pending_analyses = PendingAnalyses()
     
-    def set_text_analysis(self, result: TextAnalysisResult) -> None:
+    def set_text_analysis(self, result: InterviewFeedbackResponse) -> None:
         """Set text analysis result."""
         if self.pending_analyses is None:
             self.start_analyses()
