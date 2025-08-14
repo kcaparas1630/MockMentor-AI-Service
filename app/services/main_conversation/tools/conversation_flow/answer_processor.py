@@ -77,7 +77,13 @@ async def process_user_answer(
         session_id, user_message, session_state, session_questions, current_question_index, client
     )
     
+    # Store text analysis result in session state for coordination
+    session_state.set_text_analysis(analysis_response)
+    logger.info(f"[SESSION_STATE] Stored text analysis result for session {session_id}")
+    
     # Generate feedback text
+    # TODO: REMOVE - This formats and sends text analysis response directly to client
+    # Should be replaced with unified feedback logic using stored session analysis
     feedback_text = format_feedback_func(analysis_response)
     add_to_context_func(session_id, "assistant", feedback_text)
     
@@ -108,6 +114,8 @@ async def process_user_answer(
         logger.error(f"Failed to save answer with feedback: {save_result['error']}")
     
     # Handle the next action based on analysis
+    # TODO: REMOVE - This passes text analysis response and feedback to action handler for immediate client sending
+    # Should be replaced with unified feedback logic using stored session analysis
     return await handle_next_action_func(session_id, analysis_response, feedback_text, session_state)
 
 
