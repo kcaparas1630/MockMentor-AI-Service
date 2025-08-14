@@ -37,12 +37,12 @@ from loguru import logger
 from app.schemas.main.interview_session import InterviewSession
 from typing import Dict, List
 from app.core.secure_prompt_manager import sanitize_text
+from app.schemas.session_evaluation_schemas import SessionMetadata, SessionStateDict
 from app.services.main_conversation.tools.question_utils.fetch_and_store_questions import fetch_and_store_questions
 from app.services.main_conversation.tools.question_utils.get_current_question import get_current_question
 from app.services.main_conversation.tools.question_utils.advance_to_next_question import advance_to_next_question
 from app.services.main_conversation.tools.context_utils.get_system_prompt import get_system_prompt
 from app.services.main_conversation.tools.conversation_flow import (
-    validate_session_exists,
     handle_readiness_check,
     process_user_answer
 )
@@ -98,7 +98,7 @@ class MainConversationService:
     _conversation_contexts: Dict[str, List[Dict]] = {}  # Store conversation history for each session
     _session_questions: Dict[str, List[str]] = {}  # Store questions for each session
     _current_question_index: Dict[str, int] = {}  # Track current question index for each session
-    _session_state: Dict[str, Dict] = {} # Track session state for each session
+    _session_state_dict: SessionStateDict = SessionStateDict() # Track session state with type safety
     _session_question_data: Dict[str, List[Dict]] = {} # Store question data with IDs for each session
 
     def __new__(cls):
@@ -203,22 +203,19 @@ class MainConversationService:
             session_id = interview_session.session_id
             
             # Check if session already exists
-            if session_id in self._session_state:
+            if self._session_state_dict.session_exists(session_id):
                 raise BadRequest(f"Session {session_id} already exists. Use continue_conversation for ongoing sessions.")
             
-            # Initialize session state
-            self._session_state[session_id] = {
-                "ready": False,
-                "current_question_index": 0,
-                "waiting_for_answer": False,
-                "retry_attempts": 0,  # Track retry attempts for current question
-                "session_metadata": {
-                    "user_name": interview_session.user_name,
-                    "jobRole": interview_session.jobRole,
-                    "jobLevel": interview_session.jobLevel,
-                    "questionType": interview_session.questionType
-                }
-            }
+            # Create typed session metadata
+            session_metadata = SessionMetadata(
+                user_name=interview_session.user_name,
+                jobRole=interview_session.jobRole,
+                jobLevel=interview_session.jobLevel,
+                questionType=interview_session.questionType
+            )
+            
+            # Initialize typed session state
+            session_state = self._session_state_dict.create_session(session_id, session_metadata)
             
             # Fetch and store questions
             await fetch_and_store_questions(interview_session, self._session_questions, self._current_question_index, self._session_question_data)
@@ -272,19 +269,20 @@ class MainConversationService:
             self.add_to_context(session_id, "user", user_message)
             
             # Validate session state
-            validate_session_exists(session_id, self._session_state)
-            session_state = self._session_state[session_id]
+            session_state = self._session_state_dict.get_session(session_id)
+            if session_state is None:
+                raise NotFound(f"Session {session_id} not found. Initialize session first.")
             last_user_message = user_message.strip()
             
             # Handle readiness check
-            if not session_state["ready"]:
+            if not session_state.ready:
                 return handle_readiness_check(
                     session_id, last_user_message, session_state,
                     self._session_questions, self._current_question_index, self.add_to_context
                 )
             
             # Handle answer processing
-            if session_state["waiting_for_answer"]:
+            if session_state.waiting_for_answer:
                 return await process_user_answer(
                     session_id, last_user_message, session_state,
                     self._session_questions, self._current_question_index, self.text_analysis_client,
