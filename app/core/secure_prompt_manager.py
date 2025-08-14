@@ -311,6 +311,32 @@ NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
                         "escape_html": False   # Don't HTML escape to preserve JSON readability
                     }
                 }
+            ),
+            "summarization_prompt": PromptTemplate(
+                template="""You are MockMentor, you are a tool that will summarize the feedbacks gained from two different LLM models.
+Your task is to create a brief, warm, and encouraging 3-5 sentence feedback response. Return ONLY the feedback text.
+
+MUST START with the score: "Great! You scored a {score}!" 
+
+Then briefly mention their main strength and one tip for improvement.
+
+Data:
+Score: {score}
+Main feedback: {text_feedback}  
+Top strength: {strengths}
+Key tip: {tips}
+Facial insight: {facial_feedback} (only if score > 3, integrate naturally into the feedback)
+Next message: {next_action}
+
+Keep it warm but concise. Maximum 5 sentences total.""",
+                placeholders={
+                    "score": "Score from the text_analysis",
+                    "text_feedback": "Feedback from the text analysis",
+                    "strengths": "Selected strength from the strengths list",
+                    "tips": "Selected tip from the tips list",
+                    "facial_feedback": "Facial landmarks feedback (only if score > 3)",
+                    "next_action": "Next action message for the user"
+                },
             )
         }
     
@@ -379,6 +405,33 @@ NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
         return template.render(
             landmarks_data=landmarks_data
         )
+    def get_summarization_prompt(self, text_analysis, facial_analysis) -> str:
+        """
+        Get a secure summarization prompt with sanitized data.
+
+        Args:
+            text_analysis: JSON object containing score, feedback, strengths, tips, next_action
+            facial_analysis: JSON object containing facial feedback
+        Returns:
+            str: Secure prompt with sanitized data
+        Raises:
+            ValueError: If data validation fails
+        """
+        template = self._templates["summarization_prompt"]
+        
+        # Extract and select one strength and one tip
+        selected_strength = text_analysis.get("strengths", ["Great communication"])[0] if text_analysis.get("strengths") else "Great communication"
+        selected_tip = text_analysis.get("tips", ["Keep practicing"])[0] if text_analysis.get("tips") else "Keep practicing"
+        
+        return template.render(
+            score=text_analysis.get("score", 0),
+            text_feedback=text_analysis.get("feedback", ""),
+            strengths=selected_strength,
+            tips=selected_tip,
+            facial_feedback=facial_analysis.get("feedback", "") if text_analysis.get("score", 0) > 3 else "",
+            next_action=text_analysis.get("next_action", {}).get("message", "")
+        )
+
 
 # Global instance for reuse across the application
 secure_prompt_manager = SecurePromptManager() 
