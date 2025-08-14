@@ -21,7 +21,7 @@ from loguru import logger
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 from bson import ObjectId
-from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse, SessionMetadata
 
 load_dotenv()
 
@@ -31,7 +31,7 @@ db = client.MockMentor
 interview_collection = db.Interview
 interview_question_collection = db.InterviewQuestion
 
-async def save_answer(session_id: str, question: str, answer: str, question_index: int, feedback_data: Optional[InterviewFeedbackResponse] = None, session_question_data: Dict[str, Any] = None) -> Dict[str, Any]:
+async def save_answer(session_id: str, question: str, answer: str, question_index: int, metadata: Optional[SessionMetadata] = None, feedback_data: Optional[InterviewFeedbackResponse] = None, session_question_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Save user answer with feedback to MongoDB database using transactions for data consistency.
     
@@ -40,7 +40,7 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
         question: The question that was answered
         answer: The user's response
         question_index: The index of the question in the session
-        metadata: Additional session metadata (jobRole, jobLevel, etc.)
+        metadata: Additional session metadata (SessionMetadata object with jobRole, jobLevel, etc.) - currently unused but available for future enhancements
         feedback_data: Optional feedback data containing score, tips, and feedback
         session_question_data: Session question data for questionId retrieval
     
@@ -52,8 +52,8 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
     # Validate required parameters
     if not session_id or not question or not answer or question_index is None:
         raise ValueError("session_id, question, answer, and question_index are required parameters")
-    if feedback_data and not isinstance(feedback_data, dict):
-        raise ValueError("feedback_data must be a dictionary.")
+    if feedback_data and not isinstance(feedback_data, InterviewFeedbackResponse):
+        raise ValueError("feedback_data must be an InterviewFeedbackResponse object.")
     if session_question_data and not isinstance(session_question_data, dict):
         raise ValueError("session_question_data must be a dictionary.")
     
@@ -107,20 +107,12 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
                 )
                 
                 if interview_result.matched_count == 0:
-                    await session.abort_transaction()
                     logger.warning(f"No interview found with session_id: {session_id}")
-                    return {
-                        "success": False,
-                        "error": f"Interview not found for session {session_id}"
-                    }
+                    raise ValueError(f"Interview not found for session {session_id}")
                 
                 if interview_result.modified_count == 0:
-                    await session.abort_transaction()
                     logger.warning(f"Interview document was not modified for session_id: {session_id}")
-                    return {
-                        "success": False, 
-                        "error": f"Failed to update Interview document for session {session_id}"
-                    }
+                    raise ValueError(f"Failed to update Interview document for session {session_id}")
                 
                 # Commit transaction
                 await session.commit_transaction()
@@ -137,8 +129,8 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
                 }
                 
         except Exception as e:
-            await session.abort_transaction()
-            logger.error(f"Error saving answer (transaction aborted): {e}")
+            # Transaction is automatically aborted by the context manager
+            logger.error(f"Error saving answer: {e}")
             return {
                 "success": False,
                 "error": str(e)
