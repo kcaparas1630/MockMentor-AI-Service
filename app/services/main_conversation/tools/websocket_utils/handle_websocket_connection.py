@@ -118,7 +118,7 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
     except Exception as e:
         logger.error(f"Error processing transcript: {e}")
         await send_error_message(websocket, "Error processing transcript")
-
+# TODO: Refactor send response to send in unified feedback from generated evaluation summary
 async def send_response(websocket: WebSocket, response: str, session_state: dict = None):
     """Send AI response and handle session end if needed."""
     try:
