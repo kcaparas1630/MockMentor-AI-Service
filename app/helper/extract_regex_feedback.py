@@ -13,7 +13,7 @@ Returns:
 Dependencies:
 - app.schemas.session_evaluation_schemas.interview_analysis_request: For defining the request schema.
 - app.constants.regex_patterns: For accessing precompiled regex patterns.
-- app.schemas.session_evaluation_schemas.interview_feedback_response: For defining the response schema.
+- app.schemas.session_evaluation_schemas.session_state: For defining the response schema (InterviewFeedbackResponse).
 - re: Python's built-in regular expression module for pattern matching.
 
 Author: @kcaparas1630
