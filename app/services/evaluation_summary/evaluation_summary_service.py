@@ -16,12 +16,12 @@ Dependencies:
 - app.core.secure_prompt_manager: For secure prompt handling
 """
 
-import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Optional
 from openai import AsyncOpenAI
 from app.core.ai_client_manager import get_evaluation_summary_client
 from app.core.secure_prompt_manager import secure_prompt_manager
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse, FacialAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,8 @@ class EvaluationSummaryService:
     
     async def create_summary(
         self, 
-        text_analysis: Dict[str, Any], 
-        facial_analysis: Dict[str, Any]
+        text_analysis: InterviewFeedbackResponse, 
+        facial_analysis: FacialAnalysisResult
     ) -> str:
         """
         Create a unified summary from text and facial analysis results.
@@ -65,19 +65,17 @@ class EvaluationSummaryService:
             Exception: If API call fails
         """
         try:
-            # Validate required text analysis fields
-            required_fields = ["score", "feedback", "strengths", "tips"]
-            missing_fields = [field for field in required_fields if field not in text_analysis]
-            if missing_fields:
-                raise ValueError(f"Missing required text analysis fields: {missing_fields}")
+            # Convert results to dicts for the prompt manager
+            text_analysis_dict = text_analysis.model_dump()
+            facial_analysis_dict = facial_analysis.model_dump()
             
             # Generate secure prompt using the prompt manager
             prompt = secure_prompt_manager.get_summarization_prompt(
-                text_analysis=text_analysis,
-                facial_analysis=facial_analysis
+                text_analysis=text_analysis_dict,
+                facial_analysis=facial_analysis_dict
             )
             
-            logger.debug(f"Generated summarization prompt for score {text_analysis.get('score')}")
+            logger.debug(f"Generated summarization prompt for score {text_analysis.score}")
             
             # Call Nebius API for summary generation
             response = await self.client.chat.completions.create(
@@ -103,7 +101,7 @@ class EvaluationSummaryService:
             if not summary:
                 raise ValueError("Empty summary received from API")
             
-            logger.info(f"Successfully generated summary for score {text_analysis.get('score')}")
+            logger.info(f"Successfully generated summary for score {text_analysis.score}")
             logger.debug(f"Summary preview: {summary[:100]}...")
             
             return summary
@@ -114,13 +112,12 @@ class EvaluationSummaryService:
         except Exception as e:
             logger.error(f"Error creating evaluation summary: {e}")
             # Return fallback summary to prevent service failure
-            score = text_analysis.get("score", 0)
-            return f"Great! You scored a {score}! Your response showed good effort. Keep practicing to improve your interview skills. Ready for the next question?"
+            return f"Great! You scored a {text_analysis.score}! Your response showed good effort. Keep practicing to improve your interview skills. Ready for the next question?"
     
     async def create_summary_with_fallback(
         self,
-        text_analysis: Dict[str, Any],
-        facial_analysis: Optional[Dict[str, Any]] = None
+        text_analysis: InterviewFeedbackResponse,
+        facial_analysis: Optional[FacialAnalysisResult] = None
     ) -> str:
         """
         Create summary with graceful fallback for missing facial analysis.
@@ -134,7 +131,7 @@ class EvaluationSummaryService:
         """
         # Use empty facial analysis if not provided
         if facial_analysis is None:
-            facial_analysis = {"feedback": ""}
+            facial_analysis = FacialAnalysisResult(feedback="")
         
         try:
             return await self.create_summary(text_analysis, facial_analysis)
@@ -142,14 +139,10 @@ class EvaluationSummaryService:
             logger.warning(f"Summary creation failed, using fallback: {e}")
             
             # Generate simple fallback based on text analysis only
-            score = text_analysis.get("score", 0)
-            strengths = text_analysis.get("strengths", [])
-            tips = text_analysis.get("tips", [])
+            strength_text = text_analysis.strengths[0] if text_analysis.strengths else "your effort"
+            tip_text = text_analysis.tips[0] if text_analysis.tips else "keep practicing"
             
-            strength_text = strengths[0] if strengths else "your effort"
-            tip_text = tips[0] if tips else "keep practicing"
-            
-            return f"Great! You scored a {score}! Your {strength_text} really came through. One tip: {tip_text}. Ready for the next question?"
+            return f"Great! You scored a {text_analysis.score}! Your {strength_text} really came through. One tip: {tip_text}. Ready for the next question?"
 
 
 # Global instance for reuse across the application

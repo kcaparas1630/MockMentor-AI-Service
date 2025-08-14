@@ -21,7 +21,7 @@ Author: @kcaparas1630
 """
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.constants.regex_patterns import REGEX_PATTERNS
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, NextAction
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse, NextAction
 import json
 from loguru import logger
 

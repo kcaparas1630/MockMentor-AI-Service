@@ -19,8 +19,9 @@ import os
 from dotenv import load_dotenv
 from loguru import logger
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from bson import ObjectId
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse
 
 load_dotenv()
 
@@ -30,7 +31,7 @@ db = client.MockMentor
 interview_collection = db.Interview
 interview_question_collection = db.InterviewQuestion
 
-async def save_answer(session_id: str, question: str, answer: str, question_index: int, metadata: Dict[str, Any] = None, feedback_data: Dict[str, Any] = None, session_question_data: Dict[str, Any] = None) -> Dict[str, Any]:
+async def save_answer(session_id: str, question: str, answer: str, question_index: int, feedback_data: Optional[InterviewFeedbackResponse] = None, session_question_data: Dict[str, Any] = None) -> Dict[str, Any]:
     """
     Save user answer with feedback to MongoDB database using transactions for data consistency.
     
@@ -85,9 +86,9 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
                     "questionId": question_id,  # Link to Question collection
                     "questionText": question,
                     "answer": answer,
-                    "score": feedback_data.get("score") if feedback_data else None,
-                    "tips": feedback_data.get("tips", []) if feedback_data else [],
-                    "feedback": feedback_data.get("feedback") if feedback_data else None,
+                    "score": feedback_data.score if feedback_data else None,
+                    "tips": feedback_data.tips if feedback_data else [],
+                    "feedback": feedback_data.feedback if feedback_data else None,
                     "answeredAt": datetime.now(timezone.utc)
                 }
                 

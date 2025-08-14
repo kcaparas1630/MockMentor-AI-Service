@@ -20,8 +20,7 @@ Author: @kcaparas1630
 
 from openai import AsyncOpenAI
 from loguru import logger
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
-from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
+from app.schemas.session_evaluation_schemas.session_state import InterviewFeedbackResponse
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.services.speech_to_text.tools.response_feedback import response_feedback
 
@@ -88,11 +87,16 @@ class TextAnswersService:
                 if the AI service is unavailable.
                 
         Example:
-            >>> request = InterviewAnalysisRequest(
+            >>> from app.schemas.session_evaluation_schemas.session_state import SessionMetadata
+            >>> session_metadata = SessionMetadata(
+            ...     user_name="John Doe",
             ...     jobRole="Software Engineer",
             ...     jobLevel="Mid",
+            ...     questionType="Behavioral"
+            ... )
+            >>> request = InterviewAnalysisRequest(
+            ...     session_metadata=session_metadata,
             ...     interviewType="Behavioral",
-            ...     questionType="Behavioral",
             ...     question="Tell me about a challenging project you worked on.",
             ...     answer="I led a team of 5 developers..."
             ... )

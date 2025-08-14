@@ -24,6 +24,7 @@ from dataclasses import dataclass
 import re
 import html
 import logging
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse, FacialAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -356,10 +357,10 @@ Keep it warm but concise. Maximum 5 sentences total.""",
         template = self._templates["response_analysis"]
         
         return template.render(
-            job_role=analysis_request.jobRole,
-            job_level=analysis_request.jobLevel,
+            job_role=analysis_request.session_metadata.jobRole,
+            job_level=analysis_request.session_metadata.jobLevel,
             interview_type=analysis_request.interviewType,
-            question_type=analysis_request.questionType,
+            question_type=analysis_request.session_metadata.questionType,
             question=analysis_request.question,
             answer=analysis_request.answer
         )
@@ -405,7 +406,7 @@ Keep it warm but concise. Maximum 5 sentences total.""",
         return template.render(
             landmarks_data=landmarks_data
         )
-    def get_summarization_prompt(self, text_analysis, facial_analysis) -> str:
+    def get_summarization_prompt(self, text_analysis: InterviewFeedbackResponse, facial_analysis: FacialAnalysisResult) -> str:
         """
         Get a secure summarization prompt with sanitized data.
 
@@ -420,16 +421,16 @@ Keep it warm but concise. Maximum 5 sentences total.""",
         template = self._templates["summarization_prompt"]
         
         # Extract and select one strength and one tip
-        selected_strength = text_analysis.get("strengths", ["Great communication"])[0] if text_analysis.get("strengths") else "Great communication"
-        selected_tip = text_analysis.get("tips", ["Keep practicing"])[0] if text_analysis.get("tips") else "Keep practicing"
+        selected_strength = text_analysis.strengths[0] if text_analysis.strengths else "Great communication"
+        selected_tip = text_analysis.tips[0] if text_analysis.tips else "Keep practicing"
         
         return template.render(
-            score=text_analysis.get("score", 0),
-            text_feedback=text_analysis.get("feedback", ""),
+            score=text_analysis.score,
+            text_feedback=text_analysis.feedback,
             strengths=selected_strength,
             tips=selected_tip,
-            facial_feedback=facial_analysis.get("feedback", "") if text_analysis.get("score", 0) > 3 else "",
-            next_action=text_analysis.get("next_action", {}).get("message", "")
+            facial_feedback=facial_analysis.feedback if text_analysis.score > 3 else "",
+            next_action=text_analysis.next_action.message
         )
 
 

@@ -17,7 +17,7 @@ from .action_handlers import (
     handle_retry_action,
     handle_continue_action
 )
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse
+from app.schemas.session_evaluation_schemas.session_state import InterviewFeedbackResponse
 
 
 async def handle_next_action(

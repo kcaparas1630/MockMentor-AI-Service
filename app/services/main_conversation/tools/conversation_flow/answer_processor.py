@@ -137,10 +137,8 @@ async def analyze_user_response(
     current_question = get_current_question(session_id, session_questions, current_question_index)
     
     analysis_request = InterviewAnalysisRequest(
-        jobRole=session_metadata.jobRole,
-        jobLevel=session_metadata.jobLevel,
+        session_metadata=session_metadata,
         interviewType=session_metadata.questionType,
-        questionType=session_metadata.questionType,
         question=current_question,
         answer=user_message
     )

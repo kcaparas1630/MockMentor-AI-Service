@@ -21,7 +21,7 @@ Author: @kcaparas1630
 
 from openai import AsyncOpenAI
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, NextAction
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse, NextAction
 from app.schemas.session_evaluation_schemas.interview_request import InterviewRequest
 from app.helper.extract_regex_feedback import extract_regex_feedback
 from app.core.secure_prompt_manager import secure_prompt_manager, sanitize_text
@@ -224,20 +224,20 @@ def validate_interview_input(analysis_request: InterviewAnalysisRequest) -> Inte
     ALLOWED_QUESTION_TYPES = ["behavioral", "technical", "system-design", "coding-challenge", "hr-round"]
 
     # Validate job role
-    if analysis_request.jobRole not in ALLOWED_JOB_ROLES:
-        raise ValueError(f"Invalid job role: {analysis_request.jobRole}")
+    if analysis_request.session_metadata.jobRole not in ALLOWED_JOB_ROLES:
+        raise ValueError(f"Invalid job role: {analysis_request.session_metadata.jobRole}")
     
     # Validate job level
-    if analysis_request.jobLevel not in ALLOWED_JOB_LEVELS:
-        raise ValueError(f"Invalid job level: {analysis_request.jobLevel}")
+    if analysis_request.session_metadata.jobLevel not in ALLOWED_JOB_LEVELS:
+        raise ValueError(f"Invalid job level: {analysis_request.session_metadata.jobLevel}")
     
     # Validate interview type
     if analysis_request.interviewType not in ALLOWED_INTERVIEW_TYPES:
         raise ValueError(f"Invalid interview type: {analysis_request.interviewType}")
     
     # Validate question type
-    if analysis_request.questionType not in ALLOWED_QUESTION_TYPES:
-        raise ValueError(f"Invalid question type: {analysis_request.questionType}")
+    if analysis_request.session_metadata.questionType not in ALLOWED_QUESTION_TYPES:
+        raise ValueError(f"Invalid question type: {analysis_request.session_metadata.questionType}")
     
     # Validate question
     if not analysis_request.question:
@@ -248,10 +248,10 @@ def validate_interview_input(analysis_request: InterviewAnalysisRequest) -> Inte
         raise ValueError("Answer cannot be empty.")
     
     # Sanitize free-form text fields
-    analysis_request.jobRole = sanitize_text(analysis_request.jobRole)
-    analysis_request.jobLevel = sanitize_text(analysis_request.jobLevel)
+    analysis_request.session_metadata.jobRole = sanitize_text(analysis_request.session_metadata.jobRole)
+    analysis_request.session_metadata.jobLevel = sanitize_text(analysis_request.session_metadata.jobLevel)
     analysis_request.interviewType = sanitize_text(analysis_request.interviewType)
-    analysis_request.questionType = sanitize_text(analysis_request.questionType)
+    analysis_request.session_metadata.questionType = sanitize_text(analysis_request.session_metadata.questionType)
     analysis_request.question = sanitize_text(analysis_request.question)
     analysis_request.answer = sanitize_text(analysis_request.answer)
     
@@ -295,11 +295,16 @@ async def response_feedback(client: AsyncOpenAI, analysis_request: InterviewAnal
             
     Example:
         >>> client = AsyncOpenAI(api_key="your-api-key")
-        >>> request = InterviewAnalysisRequest(
+        >>> from app.schemas.session_evaluation_schemas.session_state import SessionMetadata
+        >>> session_metadata = SessionMetadata(
+        ...     user_name="John Doe",
         ...     jobRole="Software Engineer",
         ...     jobLevel="Mid",
+        ...     questionType="Behavioral"
+        ... )
+        >>> request = InterviewAnalysisRequest(
+        ...     session_metadata=session_metadata,
         ...     interviewType="Behavioral",
-        ...     questionType="Behavioral",
         ...     question="Describe a challenging project you worked on.",
         ...     answer="I led a team of 5 developers on a 6-month project..."
         ... )
