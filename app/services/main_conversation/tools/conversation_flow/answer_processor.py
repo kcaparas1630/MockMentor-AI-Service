@@ -82,7 +82,7 @@ async def process_user_answer(
     )
     
     # Create simple feedback text for context only (actual feedback comes from unified system)
-    feedback_text = f"Thank you for your response. I've analyzed your answer and will provide detailed feedback shortly."
+    feedback_text = "Thank you for your response. I've analyzed your answer and will provide detailed feedback shortly."
     
     add_to_context_func(session_id, "assistant", feedback_text)
     
