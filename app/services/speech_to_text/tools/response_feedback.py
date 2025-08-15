@@ -380,7 +380,6 @@ User Response: {analysis_request.answer}"""
                 feedback="Unable to analyze the response due to a security issue.",
                 strengths=["N/A"],
                 tips=["Please try again later."],
-                engagement_check=False,
                 technical_issue_detected=True,
                 needs_retry=True,
                 next_action=NextAction(
@@ -428,7 +427,6 @@ User Response: {analysis_request.answer}"""
                 feedback=feedback_data.get("feedback", ""),
                 strengths=feedback_data.get("strengths", []),
                 tips=feedback_data.get("tips", []),
-                engagement_check=feedback_data.get("engagement_check", False),
                 technical_issue_detected=feedback_data.get("technical_issue_detected", False),
                 needs_retry=feedback_data.get("needs_retry", False),
                 next_action=next_action
