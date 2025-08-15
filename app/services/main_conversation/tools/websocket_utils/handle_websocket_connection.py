@@ -143,11 +143,6 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
             }
             # Get message content from response data which is the merged feedback from the evaluation summary
             message_content = response_data.get("merged_feedback", "")
-
-            # TODO: structured the comphrehensive respomse. here's a sample next_question data:
-            """
-             Parsed NEXT_QUESTION data: {'type': 'next_question', 'feedback_formatted': "Great! You scored a 7! You did a great job providing a specific example from a previous role, which really helped to bring your answer to life. To take it to the next level, consider elaborating on the team's dynamics and your role within the team, so we can get a clearer picture of your collaboration skills. Keep up the good work, you're doing a fantastic job! Let's move on to the next question.", 'next_action_message': "Let's move on to the next question. You're doing great!", 'next_question': {'question': "Describe a situation where you encountered a technical problem you didn't immediately know how to solve. How did you approach finding a solution?", 'questionNumber': 2, 'totalQuestions': 10, 'questionIndex': 1}, 'message': "Here's your next question: Describe a situation where you encountered a technical problem you didn't immediately know how to solve. How did you approach finding a solution? Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"}
-            """
             
             # Create response with question progression data only
             comprehensive_response = {
