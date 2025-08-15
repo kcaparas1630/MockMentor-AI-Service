@@ -156,7 +156,7 @@ async def advance_to_next_question_with_message(
         # Return structured response with next question data and unified feedback when available
         response_data = {
             "type": "next_question",
-            "feedback_formatted": final_feedback,
+            "merged_feedback": final_feedback,
             "next_action_message": analysis_response.next_action.message if analysis_response else "",
             "next_question": {
                 "question": next_question,
