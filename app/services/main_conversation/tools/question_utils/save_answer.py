@@ -52,6 +52,11 @@ async def save_answer(session_id: str, question: str, answer: str, question_inde
     # Validate required parameters
     if not session_id or not question or not answer or question_index is None:
         raise ValueError("session_id, question, answer, and question_index are required parameters")
+
+    # Fail fast on invalid Mongo ObjectId strings (avoid opening a DB transaction)
+    if not ObjectId.is_valid(session_id):
+        raise ValueError("session_id must be a valid 24-character hex ObjectId string")
+
     if feedback_data and not isinstance(feedback_data, InterviewFeedbackResponse):
         raise ValueError("feedback_data must be an InterviewFeedbackResponse object.")
     if session_question_data and not isinstance(session_question_data, dict):
@@ -146,6 +151,10 @@ async def get_session_answers(session_id: str) -> Dict[str, Any]:
     Returns:
         Dictionary with success status and list of answers
     """
+    
+    # Validate session_id format before DB lookup
+    if not ObjectId.is_valid(session_id):
+        raise ValueError("session_id must be a valid 24-character hex ObjectId string")
     
     try:
         # Get the interview document and extract question IDs array
