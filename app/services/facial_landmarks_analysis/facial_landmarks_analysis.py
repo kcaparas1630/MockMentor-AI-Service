@@ -26,7 +26,7 @@ import json
 import time
 import re
 import traceback
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
