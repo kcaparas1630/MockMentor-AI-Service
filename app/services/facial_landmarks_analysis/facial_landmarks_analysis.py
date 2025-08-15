@@ -100,11 +100,7 @@ class FacialLandmarksAnalysis:
             logger.info(f"LLM call completed in {llm_duration:.3f}s")
             
             content = response.choices[0].message.content
-            
-            # Log the raw AI response for debugging
-            logger.info(f"[FACIAL_ANALYSIS] Raw AI response: {content}")
-            print(f"Response content: {content}")
-            
+                        
             # Parse JSON response
             try:
                 feedback_data = json.loads(content.strip())
