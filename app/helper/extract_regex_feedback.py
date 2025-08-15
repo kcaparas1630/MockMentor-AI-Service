@@ -48,7 +48,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             feedback=json_data.get("feedback", "No specific feedback provided."),
             strengths=json_data.get("strengths", []),
             tips=json_data.get("tips", []),
-            engagement_check=json_data.get("engagement_check", False),
             technical_issue_detected=json_data.get("technical_issue_detected", False),
             needs_retry=json_data.get("needs_retry", False),
             next_action=next_action
@@ -85,7 +84,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
         feedback = extract_str('feedback', content)
         strengths = extract_list('strengths', content)
         tips = extract_list('tips', content)
-        engagement_check = extract_bool('engagement_check', content)
         technical_issue_detected = extract_bool('technical_issue_detected', content)
         needs_retry = extract_bool('needs_retry', content)
 
@@ -94,7 +92,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             feedback=feedback,
             strengths=strengths,
             tips=tips,
-            engagement_check=engagement_check,
             technical_issue_detected=technical_issue_detected,
             needs_retry=needs_retry,
             next_action=NextAction(
@@ -109,7 +106,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             feedback="An unexpected error occurred.",
             strengths=[],
             tips=[],
-            engagement_check=False,
             technical_issue_detected=False,
             needs_retry=False,
             next_action=NextAction(type="continue", message="There was an issue processing your last response. Let's try again or move on.")
