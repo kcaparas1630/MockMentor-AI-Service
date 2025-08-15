@@ -141,9 +141,8 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 "totalQuestions": response_data["next_question"]["totalQuestions"],
                 "questionIndex": response_data["next_question"]["questionIndex"]
             }
-            # Get next action message (feedback now sent separately via unified_feedback)
-            next_action_message = response_data.get("next_action_message", "")
-            message_content = response_data.get("message", "")
+            # Get message content from response data which is the merged feedback from the evaluation summary
+            message_content = response_data.get("merged_feedback", "")
 
             # TODO: structured the comphrehensive respomse. here's a sample next_question data:
             """
@@ -153,7 +152,7 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
             # Create response with question progression data only
             comprehensive_response = {
                 "type": "next_question",
-                "content": f"{next_action_message} {message_content}".strip(),
+                "content": f"{message_content}",
                 "state": session_state,
                 "next_question": next_question_data,
                 "timestamp": str(int(time.time() * 1000))
