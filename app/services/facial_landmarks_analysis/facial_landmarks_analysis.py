@@ -21,6 +21,7 @@ Author: @kcaparas1630
 from openai import AsyncOpenAI
 from app.core.secure_prompt_manager import secure_prompt_manager
 from app.core.ai_client_manager import get_facial_analysis_client
+from app.schemas.session_evaluation_schemas import FacialAnalysisResult
 import logging
 import json
 import time
@@ -39,7 +40,7 @@ class FacialLandmarksAnalysis:
         """Initialize the facial landmarks analysis service."""
         pass
     
-    async def analyze_landmarks(self, client: AsyncOpenAI = None, landmarks_data: str = "") -> dict:
+    async def analyze_landmarks(self, client: AsyncOpenAI = None, landmarks_data: str = "") -> FacialAnalysisResult:
         """
         Analyze facial landmarks data and provide behavioral feedback.
         
@@ -99,11 +100,7 @@ class FacialLandmarksAnalysis:
             logger.info(f"LLM call completed in {llm_duration:.3f}s")
             
             content = response.choices[0].message.content
-            
-            # Log the raw AI response for debugging
-            logger.info(f"[FACIAL_ANALYSIS] Raw AI response: {content}")
-            print(f"Response content: {content}")
-            
+                        
             # Parse JSON response
             try:
                 feedback_data = json.loads(content.strip())
@@ -112,7 +109,7 @@ class FacialLandmarksAnalysis:
                 total_duration = time.time() - total_start_time
                 logger.info(f"[PERF] Total analyze_landmarks completed in {total_duration:.3f}s")
                 
-                return feedback_data
+                return FacialAnalysisResult(feedback=feedback_data.get("feedback", "Analysis complete"))
                 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON parsing error: {e}")
@@ -124,23 +121,23 @@ class FacialLandmarksAnalysis:
                     try:
                         fallback_data = json.loads(json_match.group())
                         logger.info(f"Successfully extracted JSON from mixed response: {fallback_data}")
-                        return fallback_data
+                        return FacialAnalysisResult(feedback=fallback_data.get("feedback", "Analysis complete"))
                     except json.JSONDecodeError:
                         pass
                 
                 # Return structured fallback response
-                return {
-                    "feedback": "I'm ready to analyze your behavior, but I need clearer facial landmark data. Please ensure good lighting and face the camera directly for the best analysis."
-                }
+                return FacialAnalysisResult(
+                    feedback="I'm ready to analyze your behavior, but I need clearer facial landmark data. Please ensure good lighting and face the camera directly for the best analysis."
+                )
                 
         except Exception as e:
             logger.error(f"[ERROR] Exception in analyze_landmarks: {type(e).__name__}: {e}")
             logger.error(f"[ERROR] Full traceback: {traceback.format_exc()}")
             
             # Return error response
-            return {
-                "feedback": "Technical error occurred during facial analysis. Please try again."
-            }
+            return FacialAnalysisResult(
+                feedback="Technical error occurred during facial analysis. Please try again."
+            )
 
 # Global instance for reuse across the application
 facial_landmarks_analyzer = FacialLandmarksAnalysis()

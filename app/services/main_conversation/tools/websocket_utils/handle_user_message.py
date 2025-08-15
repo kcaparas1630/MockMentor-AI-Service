@@ -50,7 +50,8 @@ async def handle_user_message(user_message: UserMessage) -> Tuple[str, Dict[str,
     try:
         service = MainConversationService()
         response = await service.continue_conversation(user_message.session_id, user_message.message)
-        session_state = service._session_state.get(user_message.session_id, {})
+        session_state_obj = service._session_state_dict.get_session(user_message.session_id)
+        session_state = session_state_obj.model_dump() if session_state_obj else {}
         return response, session_state
         
     except InternalServerError:

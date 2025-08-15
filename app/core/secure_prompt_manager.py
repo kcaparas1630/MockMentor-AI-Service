@@ -24,6 +24,7 @@ from dataclasses import dataclass
 import re
 import html
 import logging
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse, FacialAnalysisResult
 
 logger = logging.getLogger(__name__)
 
@@ -311,6 +312,49 @@ NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
                         "escape_html": False   # Don't HTML escape to preserve JSON readability
                     }
                 }
+            ),
+            "summarization_prompt": PromptTemplate(
+                template="""You are MockMentor, you are a tool that will summarize the feedbacks gained from two different LLM models.
+Your task is to create a brief, warm, and encouraging feedback response. Return ONLY the feedback text.
+
+MUST START with the score: "Great! You scored a {score}!" 
+
+Then mention their main strength, one tip for improvement, and if facial feedback is provided, integrate it naturally.
+
+Data:
+Score: {score}
+Main feedback: {text_feedback}  
+Top strength: {strengths}
+Key tip: {tips}
+Facial insight: {facial_feedback} (if provided, mention this confidence/demeanor observation)
+Next message: {next_action}
+
+Keep it warm but concise. Maximum 6 sentences total, ensuring facial insight is included when provided.""",
+                placeholders={
+                    "score": "Score from the text_analysis",
+                    "text_feedback": "Feedback from the text analysis",
+                    "strengths": "Selected strength from the strengths list",
+                    "tips": "Selected tip from the tips list",
+                    "facial_feedback": "Facial landmarks feedback (only if score > 3)",
+                    "next_action": "Next action message for the user"
+                },
+                sanitization_config={
+                    "facial_feedback": {
+                        "escape_html": False
+                    },
+                    "text_feedback": {
+                        "escape_html": False
+                    },
+                    "strengths": {
+                        "escape_html": False
+                    },
+                    "tips": {
+                        "escape_html": False
+                    },
+                    "next_action": {
+                        "escape_html": False
+                    }
+                }
             )
         }
     
@@ -330,10 +374,10 @@ NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
         template = self._templates["response_analysis"]
         
         return template.render(
-            job_role=analysis_request.jobRole,
-            job_level=analysis_request.jobLevel,
+            job_role=analysis_request.session_metadata.jobRole,
+            job_level=analysis_request.session_metadata.jobLevel,
             interview_type=analysis_request.interviewType,
-            question_type=analysis_request.questionType,
+            question_type=analysis_request.session_metadata.questionType,
             question=analysis_request.question,
             answer=analysis_request.answer
         )
@@ -379,6 +423,33 @@ NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
         return template.render(
             landmarks_data=landmarks_data
         )
+    def get_summarization_prompt(self, text_analysis: InterviewFeedbackResponse, facial_analysis: FacialAnalysisResult) -> str:
+        """
+        Get a secure summarization prompt with sanitized data.
+
+        Args:
+            text_analysis: JSON object containing score, feedback, strengths, tips, next_action
+            facial_analysis: JSON object containing facial feedback
+        Returns:
+            str: Secure prompt with sanitized data
+        Raises:
+            ValueError: If data validation fails
+        """
+        template = self._templates["summarization_prompt"]
+        
+        # Extract and select one strength and one tip
+        selected_strength = text_analysis.strengths[0] if text_analysis.strengths else "Great communication"
+        selected_tip = text_analysis.tips[0] if text_analysis.tips else "Keep practicing"
+        
+        return template.render(
+            score=text_analysis.score,
+            text_feedback=text_analysis.feedback,
+            strengths=selected_strength,
+            tips=selected_tip,
+            facial_feedback=facial_analysis.feedback if text_analysis.score > 3 else "",
+            next_action=text_analysis.next_action.message
+        )
+
 
 # Global instance for reuse across the application
 secure_prompt_manager = SecurePromptManager() 

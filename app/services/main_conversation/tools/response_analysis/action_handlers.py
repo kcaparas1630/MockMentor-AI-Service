@@ -14,12 +14,14 @@ Author: @kcaparas1630
 from typing import Dict, List
 from loguru import logger
 import json
+from app.schemas.session_evaluation_schemas import SessionState
+from app.services.main_conversation.tools.unified_feedback import check_and_generate_unified_feedback
 
 async def handle_retry_action(
     session_id: str,
     analysis_response,
     feedback_text: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     add_to_context_func,
@@ -28,10 +30,10 @@ async def handle_retry_action(
     reset_question_attempts_func
 ) -> str:
     """Handle retry actions when technical issues are detected."""
-    logger.debug(f"[RETRY] Session {session_id}: retry_attempts={session_state.get('retry_attempts', 0)}")
+    logger.debug(f"[RETRY] Session {session_id}: retry_attempts={session_state.retry_attempts}")
     
-    if session_state["retry_attempts"] < 1:
-        session_state["retry_attempts"] += 1
+    if session_state.retry_attempts < 1:
+        session_state.retry_attempts += 1
         retry_message = analysis_response.next_action.message
         add_to_context_func(session_id, "assistant", retry_message)
         logger.info(f"Feedback and retry message: {feedback_text + retry_message}")
@@ -55,7 +57,7 @@ async def handle_continue_action(
     session_id: str,
     analysis_response,
     feedback_text: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     add_to_context_func,
@@ -64,6 +66,14 @@ async def handle_continue_action(
     reset_question_attempts_func
 ) -> str:
     """Handle continue actions to advance to the next question."""
+    
+    # Check for unified feedback before advancing to next question
+    unified_feedback = await check_and_generate_unified_feedback(session_state, session_id)
+    if not unified_feedback:
+        logger.error(f"[ERROR] Failed to generate unified feedback for session {session_id}")
+        final_feedback = "I apologize, but there was an issue processing your response. Please try again."
+    else:
+        final_feedback = unified_feedback
     
     advance_to_next_question_func(session_id, current_question_index)
     
@@ -75,13 +85,13 @@ async def handle_continue_action(
         
         next_message = f"Here's your next question: {next_question} Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"
         add_to_context_func(session_id, "assistant", next_message)
-        session_state["waiting_for_answer"] = True
+        session_state.waiting_for_answer = True
         reset_question_attempts_func(session_state)
         
-        # Return structured response with next question data
+        # Return structured response with next question data and unified feedback when available
         response_data = {
             "type": "next_question",
-            "feedback_formatted": feedback_text,
+            "merged_feedback": final_feedback,
             "next_action_message": analysis_response.next_action.message,
             "next_question": {
                 "question": next_question,
@@ -94,7 +104,7 @@ async def handle_continue_action(
         
         return f"NEXT_QUESTION:{json.dumps(response_data)}"
     else:
-        session_state["waiting_for_answer"] = False
+        session_state.waiting_for_answer = False
         end_message = "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
         logger.info(f"Feedback and end message: {feedback_text + end_message}")
@@ -112,7 +122,7 @@ async def handle_continue_action(
 async def advance_to_next_question_with_message(
     session_id: str,
     feedback_text: str,
-    session_state: Dict,
+    session_state: SessionState,
     session_questions: Dict[str, List[str]],
     current_question_index: Dict[str, int],
     add_to_context_func,
@@ -122,6 +132,15 @@ async def advance_to_next_question_with_message(
     analysis_response=None
 ) -> str:
     """Helper method to advance to next question with a custom prefix message."""
+    
+    # Check for unified feedback before advancing to next question
+    unified_feedback = await check_and_generate_unified_feedback(session_state, session_id)
+    if not unified_feedback:
+        logger.error(f"[ERROR] Failed to generate unified feedback for session {session_id}")
+        final_feedback = "I apologize, but there was an issue processing your response. Please try again."
+    else:
+        final_feedback = unified_feedback
+    
     advance_to_next_question_func(session_id, current_question_index)
     
     if current_question_index[session_id] < len(session_questions[session_id]):
@@ -130,14 +149,14 @@ async def advance_to_next_question_with_message(
         current_index = current_question_index[session_id]
         total_questions = len(session_questions[session_id])
         add_to_context_func(session_id, "assistant", next_message)
-        session_state["waiting_for_answer"] = True
+        session_state.waiting_for_answer = True
         reset_question_attempts_func(session_state)
         logger.info(f"Feedback and next question message: {feedback_text + next_message}")
         
-        # Return structured response with next question data
+        # Return structured response with next question data and unified feedback when available
         response_data = {
             "type": "next_question",
-            "feedback_formatted": feedback_text,
+            "merged_feedback": final_feedback,
             "next_action_message": analysis_response.next_action.message if analysis_response else "",
             "next_question": {
                 "question": next_question,
@@ -150,7 +169,7 @@ async def advance_to_next_question_with_message(
         return f"NEXT_QUESTION:{json.dumps(response_data)}"
     # If no more questions, end the interview
     else:
-        session_state["waiting_for_answer"] = False
+        session_state.waiting_for_answer = False
         end_message = "That's the end of the interview. Great job!"
         add_to_context_func(session_id, "assistant", end_message)
         # Return structured response for interview completion
@@ -161,6 +180,6 @@ async def advance_to_next_question_with_message(
         }
         return f"INTERVIEW_COMPLETE:{json.dumps(response_data)}"
 
-def reset_question_attempts(session_state: Dict) -> None:
+def reset_question_attempts(session_state: SessionState) -> None:
     """Reset retry attempts for a new question."""
-    session_state["retry_attempts"] = 0
+    session_state.retry_attempts = 0

@@ -13,7 +13,7 @@ Returns:
 Dependencies:
 - app.schemas.session_evaluation_schemas.interview_analysis_request: For defining the request schema.
 - app.constants.regex_patterns: For accessing precompiled regex patterns.
-- app.schemas.session_evaluation_schemas.interview_feedback_response: For defining the response schema.
+- app.schemas.session_evaluation_schemas.session_state: For defining the response schema (InterviewFeedbackResponse).
 - re: Python's built-in regular expression module for pattern matching.
 
 Author: @kcaparas1630
@@ -21,7 +21,7 @@ Author: @kcaparas1630
 """
 from app.schemas.session_evaluation_schemas.interview_analysis_request import InterviewAnalysisRequest
 from app.constants.regex_patterns import REGEX_PATTERNS
-from app.schemas.session_evaluation_schemas.interview_feedback_response import InterviewFeedbackResponse, NextAction
+from app.schemas.session_evaluation_schemas import InterviewFeedbackResponse, NextAction
 import json
 from loguru import logger
 
@@ -48,7 +48,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             feedback=json_data.get("feedback", "No specific feedback provided."),
             strengths=json_data.get("strengths", []),
             tips=json_data.get("tips", []),
-            engagement_check=json_data.get("engagement_check", False),
             technical_issue_detected=json_data.get("technical_issue_detected", False),
             needs_retry=json_data.get("needs_retry", False),
             next_action=next_action
@@ -85,7 +84,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
         feedback = extract_str('feedback', content)
         strengths = extract_list('strengths', content)
         tips = extract_list('tips', content)
-        engagement_check = extract_bool('engagement_check', content)
         technical_issue_detected = extract_bool('technical_issue_detected', content)
         needs_retry = extract_bool('needs_retry', content)
 
@@ -94,7 +92,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             feedback=feedback,
             strengths=strengths,
             tips=tips,
-            engagement_check=engagement_check,
             technical_issue_detected=technical_issue_detected,
             needs_retry=needs_retry,
             next_action=NextAction(
@@ -109,7 +106,6 @@ def extract_regex_feedback(content: str, request: InterviewAnalysisRequest):
             feedback="An unexpected error occurred.",
             strengths=[],
             tips=[],
-            engagement_check=False,
             technical_issue_detected=False,
             needs_retry=False,
             next_action=NextAction(type="continue", message="There was an issue processing your last response. Let's try again or move on.")

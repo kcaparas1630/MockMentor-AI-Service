@@ -35,6 +35,7 @@ from app.errors.exceptions import InternalServerError
 from app.services.transcription.audio_buffer import IncrementalAudioBuffer
 from app.services.facial_landmarks_analysis.facial_landmarks_analysis import facial_landmarks_analyzer
 from app.core.ai_client_manager import get_facial_analysis_client
+from app.services.main_conversation.tools.unified_feedback import store_facial_analysis_and_check_unified_feedback
 import asyncio
 from typing import Optional
 import time
@@ -117,7 +118,7 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
     except Exception as e:
         logger.error(f"Error processing transcript: {e}")
         await send_error_message(websocket, "Error processing transcript")
-
+# TODO: Refactor send response to send in unified feedback from generated evaluation summary
 async def send_response(websocket: WebSocket, response: str, session_state: dict = None):
     """Send AI response and handle session end if needed."""
     try:
@@ -127,6 +128,7 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
             try: 
                 data_json = response[14:]  # Remove "NEXT_QUESTION:" prefix
                 response_data = json.loads(data_json)
+                logger.debug(f"Parsed NEXT_QUESTION data: {response_data}")
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse NEXT_QUESTION data: {e}")
                 await send_error_message(websocket, "Invalid NEXT_QUESTION data format")
@@ -139,17 +141,18 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 "totalQuestions": response_data["next_question"]["totalQuestions"],
                 "questionIndex": response_data["next_question"]["questionIndex"]
             }
-            # Use the complete formatted feedback (which includes opening line, feedback, strengths, tips)
-            formatted_feedback = response_data["feedback_formatted"]
-            next_action_message = response_data.get("next_action_message", "")
+            # Get message content from response data which is the merged feedback from the evaluation summary
+            message_content = response_data.get("merged_feedback", "")
+
+            # TODO: structured the comphrehensive respomse. here's a sample next_question data:
+            """
+             Parsed NEXT_QUESTION data: {'type': 'next_question', 'feedback_formatted': "Great! You scored a 7! You did a great job providing a specific example from a previous role, which really helped to bring your answer to life. To take it to the next level, consider elaborating on the team's dynamics and your role within the team, so we can get a clearer picture of your collaboration skills. Keep up the good work, you're doing a fantastic job! Let's move on to the next question.", 'next_action_message': "Let's move on to the next question. You're doing great!", 'next_question': {'question': "Describe a situation where you encountered a technical problem you didn't immediately know how to solve. How did you approach finding a solution?", 'questionNumber': 2, 'totalQuestions': 10, 'questionIndex': 1}, 'message': "Here's your next question: Describe a situation where you encountered a technical problem you didn't immediately know how to solve. How did you approach finding a solution? Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"}
+            """
             
-            # Combine formatted feedback with next action message
-            combined_message = f"{formatted_feedback} {next_action_message}".strip()
-            
-            # Create response with just the essential data for continue action
+            # Create response with question progression data only
             comprehensive_response = {
                 "type": "next_question",
-                "content": combined_message,
+                "content": f"{message_content}",
                 "state": session_state,
                 "next_question": next_question_data,
                 "timestamp": str(int(time.time() * 1000))
@@ -167,6 +170,8 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
                 await send_error_message(websocket, "Invalid INTERVIEW_COMPLETE data format")
                 return
             
+            # TODO: REMOVE - This sends text analysis feedback in interview completion to WebSocket client
+            # Should be replaced with unified feedback logic using stored session analysis
             await websocket.send_json({
                 "type": "interview_complete",
                 "content": response_data["feedback"],
@@ -207,7 +212,8 @@ async def handle_websocket_connection(websocket: WebSocket):
         service = MainConversationService()
         
         response: str = await service.conversation_with_user_response(session)
-        session_state = service._session_state.get(session.session_id, {})
+        session_state_obj = service._session_state_dict.get_session(session.session_id)
+        session_state = session_state_obj.model_dump() if session_state_obj else {}
         await send_websocket_message(websocket, "message", response, session_state)
         
         while True:
@@ -355,6 +361,12 @@ async def handle_websocket_connection(websocket: WebSocket):
                         await send_error_message(websocket, "Invalid landmarks data format")
                         continue
                     
+                    # Check if user is ready for interview before performing facial analysis
+                    current_session_state = service._session_state_dict.get_session(session.session_id)
+                    if not current_session_state or not current_session_state.ready:
+                        logger.info(f"Skipping facial analysis for session {session.session_id} - user not ready for interview")
+                        continue
+                    
                     # Convert landmarks data to a format suitable for analysis
                     landmarks_summary = {
                         "total_frames": len(landmarks_data),
@@ -371,13 +383,12 @@ async def handle_websocket_connection(websocket: WebSocket):
                             str(landmarks_summary)
                         )
                         
-                        # Send analysis result back to client
-                        await websocket.send_json({
-                            "type": "behavioral_feedback",
-                            "content": analysis_result.get("feedback", "Analysis complete"),
-                            "data": analysis_result,
-                            "timestamp": str(int(time.time() * 1000))
-                        })
+                        # Store facial analysis result - unified feedback will be generated in action handlers
+                        # (reusing current_session_state from readiness check above)
+                        await store_facial_analysis_and_check_unified_feedback(
+                            current_session_state, session.session_id, analysis_result
+                        )
+                        logger.info(f"[FACIAL_ANALYSIS] Stored facial analysis result for session {session.session_id}")
                         
                     except Exception as e:
                         logger.error(f"Error in behavioral analysis: {e}")
