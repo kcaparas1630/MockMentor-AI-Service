@@ -172,7 +172,7 @@ class MainConversationService:
             if not context:
                 return await self.initialize_session(interview_session)
             
-            return None
+            return await self.continue_conversation(session_id, "")
             
         except BadRequest:
             raise
@@ -271,6 +271,7 @@ class MainConversationService:
             session_state = self._session_state_dict.get_session(session_id)
             if session_state is None:
                 raise NotFound(f"Session {session_id} not found. Initialize session first.")
+            self.add_to_context(session_id, "user", user_message)
             last_user_message = user_message.strip()
             
             # Handle readiness check
