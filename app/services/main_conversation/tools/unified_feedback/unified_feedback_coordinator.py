@@ -14,7 +14,6 @@ Dependencies:
 Author: @kcaparas1630
 """
 
-import asyncio
 from typing import Optional
 from loguru import logger
 from app.schemas.session_evaluation_schemas import SessionState
