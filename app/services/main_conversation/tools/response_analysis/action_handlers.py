@@ -91,7 +91,7 @@ async def handle_continue_action(
         # Return structured response with next question data and unified feedback when available
         response_data = {
             "type": "next_question",
-            "feedback_formatted": final_feedback,
+            "merged_feedback": final_feedback,
             "next_action_message": analysis_response.next_action.message,
             "next_question": {
                 "question": next_question,
