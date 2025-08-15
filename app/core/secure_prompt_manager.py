@@ -315,21 +315,21 @@ NO EXPLANATION. NO ANALYSIS SECTIONS. NO MARKDOWN. ONLY JSON.""",
             ),
             "summarization_prompt": PromptTemplate(
                 template="""You are MockMentor, you are a tool that will summarize the feedbacks gained from two different LLM models.
-Your task is to create a brief, warm, and encouraging 3-5 sentence feedback response. Return ONLY the feedback text.
+Your task is to create a brief, warm, and encouraging feedback response. Return ONLY the feedback text.
 
 MUST START with the score: "Great! You scored a {score}!" 
 
-Then briefly mention their main strength and one tip for improvement.
+Then mention their main strength, one tip for improvement, and if facial feedback is provided, integrate it naturally.
 
 Data:
 Score: {score}
 Main feedback: {text_feedback}  
 Top strength: {strengths}
 Key tip: {tips}
-Facial insight: {facial_feedback} (only if score > 3, integrate naturally into the feedback)
+Facial insight: {facial_feedback} (if provided, mention this confidence/demeanor observation)
 Next message: {next_action}
 
-Keep it warm but concise. Maximum 5 sentences total.""",
+Keep it warm but concise. Maximum 6 sentences total, ensuring facial insight is included when provided.""",
                 placeholders={
                     "score": "Score from the text_analysis",
                     "text_feedback": "Feedback from the text analysis",
@@ -338,6 +338,23 @@ Keep it warm but concise. Maximum 5 sentences total.""",
                     "facial_feedback": "Facial landmarks feedback (only if score > 3)",
                     "next_action": "Next action message for the user"
                 },
+                sanitization_config={
+                    "facial_feedback": {
+                        "escape_html": False
+                    },
+                    "text_feedback": {
+                        "escape_html": False
+                    },
+                    "strengths": {
+                        "escape_html": False
+                    },
+                    "tips": {
+                        "escape_html": False
+                    },
+                    "next_action": {
+                        "escape_html": False
+                    }
+                }
             )
         }
     
