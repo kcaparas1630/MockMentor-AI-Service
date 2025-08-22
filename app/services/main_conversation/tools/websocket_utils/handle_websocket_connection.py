@@ -118,7 +118,6 @@ async def process_transcript(transcript: str, websocket: WebSocket, session: Int
     except Exception as e:
         logger.error(f"Error processing transcript: {e}")
         await send_error_message(websocket, "Error processing transcript")
-# TODO: Refactor send response to send in unified feedback from generated evaluation summary
 async def send_response(websocket: WebSocket, response: str, session_state: dict = None):
     """Send AI response and handle session end if needed."""
     try:
@@ -143,11 +142,6 @@ async def send_response(websocket: WebSocket, response: str, session_state: dict
             }
             # Get message content from response data which is the merged feedback from the evaluation summary
             message_content = response_data.get("merged_feedback", "")
-
-            # TODO: structured the comphrehensive respomse. here's a sample next_question data:
-            """
-             Parsed NEXT_QUESTION data: {'type': 'next_question', 'feedback_formatted': "Great! You scored a 7! You did a great job providing a specific example from a previous role, which really helped to bring your answer to life. To take it to the next level, consider elaborating on the team's dynamics and your role within the team, so we can get a clearer picture of your collaboration skills. Keep up the good work, you're doing a fantastic job! Let's move on to the next question.", 'next_action_message': "Let's move on to the next question. You're doing great!", 'next_question': {'question': "Describe a situation where you encountered a technical problem you didn't immediately know how to solve. How did you approach finding a solution?", 'questionNumber': 2, 'totalQuestions': 10, 'questionIndex': 1}, 'message': "Here's your next question: Describe a situation where you encountered a technical problem you didn't immediately know how to solve. How did you approach finding a solution? Take your time, and remember to be specific about your role and the impact you made. I'm looking forward to hearing your response!"}
-            """
             
             # Create response with question progression data only
             comprehensive_response = {
@@ -229,7 +223,6 @@ async def handle_websocket_connection(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "heartbeat",
                         "content": "pong",
-                        "timestamp": raw_message.get("timestamp"),
                         "timestamp": str(int(time.time() * 1000))
                     })
                     continue
@@ -339,48 +332,40 @@ async def handle_websocket_connection(websocket: WebSocket):
                     logger.debug(f"Created background task: {task.get_name()}")
                     continue
 
-                if message_type == "behavioral_analysis":
-                    logger.info("Received behavioral analysis request from client.")
-                    logger.debug(f"Behavioral analysis data: {raw_message}")
+                if message_type == "emotion_features":
+                    logger.info("Received emotion features request from client.")
+                    logger.debug(f"Emotion features data: {raw_message}")
                     
-                    # Extract landmarks data from the message
-                    landmarks_data = raw_message.get("landmarks", [])
+                    # Extract emotion features data from the message
+                    emotion_data = raw_message.get("data", {})
                     
-                    # Validate landmarks data
-                    if not landmarks_data or len(landmarks_data) == 0:
-                        logger.warning("Empty landmarks data received")
-                        await send_error_message(websocket, "No landmarks data provided for behavioral analysis")
+                    # Validate emotion features data
+                    if not emotion_data:
+                        logger.warning("Empty emotion data received")
+                        await send_error_message(websocket, "No emotion data provided for emotion analysis")
                         continue
                     
-                    logger.debug(f"Received {len(landmarks_data)} landmark frames")
-                    logger.debug(f"Sample landmark frame: {landmarks_data[0] if landmarks_data else 'None'}")
+                    logger.debug(f"Received emotion features: {emotion_data}")
                     
-                    # Validate first frame structure (client sends timeStamp in camelCase)
-                    if landmarks_data and not all(key in landmarks_data[0] for key in ["confidence", "timeStamp", "landmarks"]):
-                        logger.warning("Invalid landmarks data structure")
-                        await send_error_message(websocket, "Invalid landmarks data format")
+                    # Validate emotion features structure
+                    required_fields = ["smile", "eyeOpen", "browRaise", "mouthOpen", "tension", "symmetry", "confidence", "timestamp", "frameId"]
+                    if not all(key in emotion_data for key in required_fields):
+                        logger.warning("Invalid emotion data structure")
+                        await send_error_message(websocket, "Invalid emotion data format - missing required fields")
                         continue
                     
                     # Check if user is ready for interview before performing facial analysis
                     current_session_state = service._session_state_dict.get_session(session.session_id)
                     if not current_session_state or not current_session_state.ready:
-                        logger.info(f"Skipping facial analysis for session {session.session_id} - user not ready for interview")
+                        logger.info(f"Skipping emotion analysis for session {session.session_id} - user not ready for interview")
                         continue
-                    
-                    # Convert landmarks data to a format suitable for analysis
-                    landmarks_summary = {
-                        "total_frames": len(landmarks_data),
-                        "confidence_scores": [frame.get("confidence", 0) for frame in landmarks_data],
-                        "timestamps": [frame.get("timeStamp", 0) for frame in landmarks_data],
-                        "sample_landmarks": landmarks_data[0].get("landmarks", [[]])[0] if landmarks_data and landmarks_data[0].get("landmarks") else []
-                    }
                     
                     try:
                         # Use dedicated facial analysis client for better performance
                         facial_analysis_client = get_facial_analysis_client()
-                        analysis_result = await facial_landmarks_analyzer.analyze_landmarks(
-                            facial_analysis_client,
-                            str(landmarks_summary)
+                        analysis_result = await facial_landmarks_analyzer.analyze_emotion_features(
+                            emotion_data,
+                            facial_analysis_client
                         )
                         
                         # Store facial analysis result - unified feedback will be generated in action handlers
@@ -388,11 +373,11 @@ async def handle_websocket_connection(websocket: WebSocket):
                         await store_facial_analysis_and_check_unified_feedback(
                             current_session_state, session.session_id, analysis_result
                         )
-                        logger.info(f"[FACIAL_ANALYSIS] Stored facial analysis result for session {session.session_id}")
+                        logger.info(f"[EMOTION_ANALYSIS] Stored emotion analysis result for session {session.session_id}")
                         
                     except Exception as e:
-                        logger.error(f"Error in behavioral analysis: {e}")
-                        await send_error_message(websocket, "Failed to process behavioral analysis")
+                        logger.error(f"Error in emotion analysis: {e}")
+                        await send_error_message(websocket, "Failed to process emotion analysis")
                     
                     continue
                 

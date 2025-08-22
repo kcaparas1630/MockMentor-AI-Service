@@ -405,24 +405,71 @@ Keep it warm but concise. Maximum 6 sentences total, ensuring facial insight is 
             question_type=interview_session.questionType
         )
     
-    def get_facial_landmarks_analysis_prompt(self, landmarks_data) -> str:
+    def get_emotion_analysis_prompt(self, emotion_context: str) -> str:
         """
-        Get a secure facial landmarks analysis prompt with sanitized data.
+        Generate a secure prompt for emotion analysis using compressed facial features.
         
         Args:
-            landmarks_data: The facial landmarks data to analyze
+            emotion_context (str): The formatted emotion analysis context
             
         Returns:
-            str: Secure prompt with sanitized data
-            
-        Raises:
-            ValueError: If data validation fails
+            str: The secure prompt for LLM emotion analysis
         """
-        template = self._templates["facial_landmarks_analysis"]
         
-        return template.render(
-            landmarks_data=landmarks_data
-        )
+        prompt = f"""You are MockMentor, an AI interview coach that analyzes facial emotion data to provide helpful feedback. You MUST return ONLY valid JSON.
+
+ANALYSIS CONTEXT:
+{emotion_context}
+
+YOUR ROLE:
+- Analyze the provided emotion metrics to understand the candidate's state
+- Provide specific, actionable feedback based on the data
+- Focus on interview performance improvement
+- Be encouraging yet constructive
+- Keep feedback concise and professional
+
+ANALYSIS GUIDELINES:
+
+CONFIDENT INDICATORS:
+- Moderate smile (40-70) + low tension (0-30) + good symmetry (70+) = confident demeanor
+- Feedback: "Your steady expression projects confidence and professionalism"
+
+NERVOUS INDICATORS:  
+- High tension (60+) + low symmetry (0-50) + variable features = nervous energy
+- Feedback: "I notice some tension in your expression. Take a deep breath and relax your facial muscles"
+
+HAPPY/ENGAGED INDICATORS:
+- High smile (60+) + good eye openness (60+) + low tension = positive engagement  
+- Feedback: "Your positive expression and natural smile create great rapport"
+
+SURPRISED/ALERT INDICATORS:
+- High eyebrow raise (50+) + wide eyes (70+) = high alertness
+- Feedback: "You look very alert and engaged - excellent for staying attentive"
+
+FOCUSED INDICATORS:
+- Good eye openness (50-80) + low tension + balanced features = professional focus
+- Feedback: "Your concentrated expression shows excellent attention and focus"
+
+NEUTRAL/COMPOSED INDICATORS:
+- Balanced features across the board = professional composure
+- Feedback: "You have a calm, professional expression that's well-suited for interviews"
+
+IMPORTANT RULES:
+- Always provide specific observations based on the actual metrics
+- Mention trends if significant changes are noted
+- Address data quality issues if confidence is low (<50)
+- Keep feedback to 1-2 sentences maximum
+- Be encouraging while providing actionable advice
+- Never mention technical details about the analysis process
+
+RESPONSE FORMAT (RETURN ONLY THIS JSON):
+{{
+  "feedback": "Specific observation and advice based on emotion analysis"
+}}
+
+Analyze the emotion data and provide appropriate feedback that helps improve interview performance."""
+
+        return prompt
     def get_summarization_prompt(self, text_analysis: InterviewFeedbackResponse, facial_analysis: FacialAnalysisResult) -> str:
         """
         Get a secure summarization prompt with sanitized data.

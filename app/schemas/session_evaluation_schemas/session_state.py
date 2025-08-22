@@ -53,7 +53,7 @@ class InterviewFeedbackResponse(BaseModel):
 
 
 class FacialAnalysisResult(BaseModel):
-    """Results from facial landmarks analysis."""
+    """Results from facial emotion analysis."""
     feedback: str = Field(..., description="Emotional/behavioral insight (2-3 sentences max)")
 
 
