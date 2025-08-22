@@ -223,7 +223,6 @@ async def handle_websocket_connection(websocket: WebSocket):
                     await websocket.send_json({
                         "type": "heartbeat",
                         "content": "pong",
-                        "timestamp": raw_message.get("timestamp"),
                         "timestamp": str(int(time.time() * 1000))
                     })
                     continue
