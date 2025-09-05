@@ -1,20 +1,30 @@
 import firebase_admin
 from firebase_admin import auth, credentials
+from app.schemas.auth.user_auth_schemas import ProfileData
+from sqlalchemy.orm import joinedload
 
 cred = credentials.Certificate("/config/firebase-admin-key.json")
 firebase_admin.initialize_app(cred)
 
 
+
+
 # TODO: Implement Firebase authentication functions here
 def verify_id_token(id_token: str):
     # Verify the ID token while checking if the token is revoked by passing check_revoked=True.
-    pass
+    try: 
+        decoded_token = auth.verify_id_token(id_token, check_revoked=True)
+        uid = decoded_token['uid']
+        return decoded_token, uid
+    except auth.InvalidIdTokenError:
+        # Token is invalid, expired or revoked.
+        return None, None
 
-def create_user():
+async def create_user(user: ProfileData):
     # Create a new user with the specified properties.
     pass
-
-def get_all_users():
+    
+async def get_all_users():
     # List all users. This will be a generator that yields UserRecord instances.
     pass
 
