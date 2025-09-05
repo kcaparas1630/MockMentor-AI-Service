@@ -1,8 +1,9 @@
 import uuid
 from typing import List, Optional
-from sqlalchemy import ForeignKey, String, Column, DateTime, func
+from sqlalchemy import ForeignKey, String, DateTime, func, JSON
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
+from datetime import datetime
 
 class Base(DeclarativeBase):
     pass
@@ -11,11 +12,11 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    firebase_uid: Mapped[str] = mapped_column(unique=True)
+    firebase_uid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),unique=True)
     profile: Mapped["Profile"] = relationship("Profile", back_populates="user", cascade="all", uselist=False)
     interviews: Mapped[List["Interview"]] = relationship("Interview", back_populates="user", cascade="all")
-    created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
-    updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
     def __repr__(self):
         return f"User(name={self.profile.name})"
@@ -26,7 +27,7 @@ class Profile(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(30))
     email: Mapped[str] = mapped_column(String(50), unique=True)
-    last_login: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    last_login: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     # Establish one-to-one relationship with User
     user: Mapped["User"] = relationship("User", back_populates="profile")
@@ -43,8 +44,8 @@ class Interview(Base):
     questions: Mapped[List["InterviewQuestion"]] = relationship("InterviewQuestion", back_populates="interview", cascade="all")
     duration: Mapped[Optional[int]] = mapped_column(nullable=True)
     interview_type: Mapped[str] = mapped_column(String(50))
-    created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
-    updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     # Establish many-to-one relationship with User
     user: Mapped["User"] = relationship("User", back_populates="interviews")
 
@@ -74,9 +75,9 @@ class InterviewQuestion(Base):
     question_text: Mapped[str] = mapped_column(String(500))
     answer: Mapped[str] = mapped_column(String(2000))
     score: Mapped[int] = mapped_column()
-    tips: Mapped[List[str]] = mapped_column(String(1000))
+    tips: Mapped[List[str]] = mapped_column(JSON)
     feedback: Mapped[str] = mapped_column(String(2000))
-    answered_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
+    answered_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
 
     # Establish many-to-one relationship with Interview
     interview: Mapped["Interview"] = relationship("Interview", back_populates="questions")
