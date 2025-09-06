@@ -18,4 +18,4 @@ htmlcov/
 *.egg-info/
 dist/
 build/
-*firebase-admin-key*.json
+*mockmentor-dev-firebase-adminsdk-fbsvc-3769206016*.json
