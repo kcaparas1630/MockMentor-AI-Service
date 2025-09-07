@@ -4,7 +4,7 @@ from app.services.auth.firebase_auth import create_user
 from app.errors.exceptions import InternalServerError
 from sqlalchemy.orm import Session
 from app.database import get_db_session
-from app.schemas.auth.user_auth_schemas import ProfileData
+from app.schemas.auth.user_auth_schemas import PartialProfileData
 
 router = APIRouter(
     prefix="/auth",
@@ -13,7 +13,7 @@ router = APIRouter(
 )
 
 @router.post("/register")
-async def auth_endpoint(profile_data: ProfileData, session: Session = Depends(get_db_session)):
+async def auth_endpoint(profile_data: PartialProfileData, session: Session = Depends(get_db_session)):
     """
     Auth endpoint to handle user registration and login.
     """

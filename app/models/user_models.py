@@ -12,7 +12,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    firebase_uid: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),unique=True)
+    firebase_uid: Mapped[str] = mapped_column(String(128), unique=True)
     profile: Mapped["Profile"] = relationship("Profile", back_populates="user", cascade="all", uselist=False)
     interviews: Mapped[List["Interview"]] = relationship("Interview", back_populates="user", cascade="all")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
@@ -25,8 +25,9 @@ class Profile(Base):
     __tablename__ = "user_profile"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(30))
+    name: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     email: Mapped[str] = mapped_column(String(50), unique=True)
+    job_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     last_login: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     # Establish one-to-one relationship with User
