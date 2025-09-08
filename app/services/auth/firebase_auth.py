@@ -1,19 +1,17 @@
 import firebase_admin
 from firebase_admin import auth, credentials
+from firebase_admin.exceptions import InvalidArgumentError
 from app.schemas.auth.user_auth_schemas import PartialProfileData
-from sqlalchemy.orm import joinedload, Session
+from sqlalchemy.orm import Session
 from app.models.user_models import User, Profile
-from app.errors.exceptions import DuplicateUserError
+from app.errors.exceptions import DuplicateUserError, WeakPasswordError, InternalServerError
 import os
+from loguru import logger
 
 file_path = "app/config/mockmentor-dev-firebase-adminsdk-fbsvc-3769206016.json"
-if os.path.exists(file_path):
-    print("File exists")
-else:
-    print("File not found")
-
-print(f"Current working directory: {os.getcwd()}")
-print(f"Files in current directory: {os.listdir('.')}")
+# Check if credentials exists
+if not os.path.exists(file_path):
+    logger.error(f"Firebase credentials file not found at {file_path}")
 
 cred = credentials.Certificate(file_path)
 firebase_admin.initialize_app(cred)
@@ -34,10 +32,22 @@ async def create_user(user: PartialProfileData, session: Session):
     db_user = session.query(User).join(Profile).filter(Profile.email == user.email).first()
     if db_user:
         raise DuplicateUserError(user.email)
-    auth_user = auth.create_user(
-        email=user.email,
-        password=user.password,
-    )
+    # Create user in Firebase
+    try: 
+        auth_user = auth.create_user(
+            email=user.email,
+            password=user.password,
+            email_verified=False,
+        )
+    except InvalidArgumentError as e:
+        error_msg = str(e)
+        if "EMAIL_EXISTS" in error_msg:
+            raise DuplicateUserError(user.email)
+        elif "PASSWORD_DOES_NOT_MEET_REQUIREMENTS" in error_msg:
+            raise WeakPasswordError()
+        else:
+            logger.error(f"Error creating user in Firebase: {error_msg}")
+            raise
     # Create database records
     new_user = User(firebase_uid=auth_user.uid)
     session.add(new_user)
@@ -50,11 +60,17 @@ async def create_user(user: PartialProfileData, session: Session):
         last_login=user.last_login
     )
     session.add(new_profile)
-    session.commit()
-    custom_token = auth.create_custom_token(auth_user.uid)
+    try:
+        session.commit()
+    except Exception as e:
+        # Rollback database changes.
+        session.rollback()
+        # cleanup orphaned Firebase user
+        auth.delete_user(auth_user.uid)
+        logger.error(f"Database commit failed, cleaned up Firebase user: {e}")
+        raise InternalServerError("Failed to create user due to database error.")
     return {
         "firebase_user": auth_user,
-        "custom_token": custom_token,
         "db_user": new_user,
         "db_profile": new_profile
     }

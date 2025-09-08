@@ -23,6 +23,9 @@ class DuplicateRecordError(HTTPException):
             status_code=HTTP_409_CONFLICT,
             detail=detail
         )
+class WeakPasswordError(BadRequest):
+    def __init__(self, detail: str = "The provided password is weak. Password must contain an upper case character, numeric character, and a non-alphanumeric character."):
+        super().__init__(detail=detail)
 
 class DuplicateUserError(DuplicateRecordError):
     def __init__(self, identifier: str = None):
