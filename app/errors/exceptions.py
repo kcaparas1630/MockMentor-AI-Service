@@ -39,3 +39,11 @@ class DuplicateQuestionError(DuplicateRecordError):
     def __init__(self, identifier: str = None):
         detail = f"Question '{identifier}' already exists." if identifier else "Question already exists."
         super().__init__(detail=detail)
+class UserNotFound(NotFound):
+    def __init__(self, identifier: str = None):
+        detail = f"User not found." if identifier else "User not found."
+        super().__init__(detail=detail)
+class UserDisabled(Unauthorized):
+    def __init__(self, identifier: str = None):
+        detail = f"User is disabled." if identifier else "User is disabled."
+        super().__init__(detail=detail)
