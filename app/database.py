@@ -1,3 +1,22 @@
+"""Database Configuration and Connection Management Module
+
+This module handles database connectivity, session management, and table operations
+for the MockMentor application. It provides PostgreSQL connection with connection
+pooling and comprehensive database utilities.
+
+The module contains functions for database session management, table creation,
+and connection configuration. It serves as the primary interface for database
+operations in the application's data access layer.
+
+Dependencies:
+- sqlalchemy: For database ORM and connection management.
+- dotenv: For environment variable loading.
+- loguru: For logging operations.
+- app.models.user_models: For database model definitions.
+
+Author: @kcaparas1630
+"""
+
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
@@ -27,6 +46,20 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def get_db_session():
+    """FastAPI dependency for database session management.
+    
+    Creates a new database session for each request and ensures proper
+    cleanup after the request is completed. Use as a FastAPI dependency
+    to inject database sessions into route handlers.
+    
+    Yields:
+        Session: SQLAlchemy database session
+        
+    Example:
+        @app.get("/users")
+        async def get_users(db: Session = Depends(get_db_session)):
+            return db.query(User).all()
+    """
     db = SessionLocal()
     try:
         yield db
@@ -34,6 +67,17 @@ def get_db_session():
         db.close()
 
 def create_tables():
+    """Create all database tables defined in the models.
+    
+    Uses SQLAlchemy's metadata to create all tables that don't already exist.
+    This is typically called during application startup.
+    
+    Raises:
+        Exception: If table creation fails
+        
+    Note:
+        This operation is idempotent - existing tables won't be modified
+    """
     try:
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
@@ -42,6 +86,17 @@ def create_tables():
         raise
 
 def drop_tables():
+    """Drop all database tables defined in the models.
+    
+    WARNING: This will permanently delete all data in the tables.
+    Use with extreme caution and only in development/testing environments.
+    
+    Raises:
+        Exception: If table deletion fails
+        
+    Note:
+        This operation will cascade and delete all related data
+    """
     try:
         Base.metadata.drop_all(bind=engine)
         logger.info("Database tables drop successfully")

@@ -1,3 +1,24 @@
+"""Firebase Authentication Service Module
+
+This module provides Firebase authentication services including user creation,
+verification, and management. It integrates Firebase Auth with the application's
+database to maintain user records and profiles.
+
+The module contains functions for Firebase ID token verification, user registration,
+and comprehensive user management operations. It serves as the primary interface
+for Firebase authentication in the application's auth service layer.
+
+Dependencies:
+- firebase_admin: For Firebase authentication and user management.
+- sqlalchemy: For database operations and session management.
+- loguru: For logging operations.
+- app.schemas.auth.user_auth_schemas: For user authentication data models.
+- app.models.user_models: For User and Profile database models.
+- app.errors.exceptions: For custom exception handling.
+
+Author: @kcaparas1630
+"""
+
 import firebase_admin
 from firebase_admin import auth, credentials
 from firebase_admin.exceptions import InvalidArgumentError
@@ -18,7 +39,17 @@ cred = credentials.Certificate(file_path)
 firebase_admin.initialize_app(cred)
 
 def verify_id_token(id_token: str):
-    # Verify the ID token while checking if the token is revoked by passing check_revoked=True.
+    """Verify Firebase ID token and extract user information.
+    
+    Args:
+        id_token (str): Firebase ID token to verify
+        
+    Returns:
+        tuple: (decoded_token, uid) if valid, (None, None) if invalid
+        
+    Note:
+        Checks if token is revoked using check_revoked=True parameter
+    """
     try: 
         decoded_token = auth.verify_id_token(id_token, check_revoked=True)
         uid = decoded_token['uid']
@@ -28,7 +59,25 @@ def verify_id_token(id_token: str):
         return None, None
 
 def get_current_user_uid(request: Request):
-    """Middleware to extract and verify Firebase ID token from request headers"""
+    """Extract and verify Firebase ID token from request headers.
+    
+    This function serves as a FastAPI dependency to authenticate users
+    by verifying their Firebase ID token from the Authorization header.
+    
+    Args:
+        request (Request): FastAPI request object containing headers
+        
+    Returns:
+        str: Firebase UID of the authenticated user
+        
+    Raises:
+        HTTPException: 401 if authorization header is missing, invalid, or token is expired
+        
+    Example:
+        Used as FastAPI dependency:
+        @app.get("/protected")
+        async def protected_route(uid: str = Depends(get_current_user_uid)):
+    """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         from fastapi import HTTPException
@@ -43,7 +92,26 @@ def get_current_user_uid(request: Request):
     return uid
 
 async def create_user(user: PartialProfileData, session: Session):
-    # Create a new user with the specified properties.
+    """Create a new user in both Firebase and the application database.
+    
+    This function performs atomic user creation by:
+    1. Checking for existing users with the same email
+    2. Creating the user in Firebase Auth
+    3. Creating corresponding database records (User and Profile)
+    4. Rolling back if any step fails
+    
+    Args:
+        user (PartialProfileData): User profile data for registration
+        session (Session): SQLAlchemy database session
+        
+    Returns:
+        dict: Contains firebase_user, db_user, and db_profile objects
+        
+    Raises:
+        DuplicateUserError: If user with email already exists
+        WeakPasswordError: If password doesn't meet Firebase requirements
+        InternalServerError: If database operations fail
+    """
     db_user = session.query(User).join(Profile).filter(Profile.email == user.email).first()
     if db_user:
         raise DuplicateUserError(user.email)
@@ -91,6 +159,15 @@ async def create_user(user: PartialProfileData, session: Session):
     }
     
 async def get_all_users(session: Session):
+    """Retrieve all users from the database with their profile information.
+    
+    Args:
+        session (Session): SQLAlchemy database session
+        
+    Returns:
+        list: List of user dictionaries containing id, firebase_uid, name, email,
+              job_role, last_login, created_at, and updated_at
+    """
     users = session.query(User).join(Profile).all()
     if not users:
         return []
@@ -106,6 +183,22 @@ async def get_all_users(session: Session):
     } for user in users]
 
 async def delete_user(uid: str, session: Session):
+    """Delete a user from both Firebase and the application database.
+    
+    Performs cleanup in both Firebase Auth and the database. If Firebase
+    deletion fails, the operation continues to remove the database record.
+    
+    Args:
+        uid (str): Firebase UID of the user to delete
+        session (Session): SQLAlchemy database session
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        UserNotFound: If user with given UID doesn't exist in database
+        InternalServerError: If deletion operations fail
+    """
     user = session.query(User).filter(User.firebase_uid == uid).first()
     if not user:
         raise UserNotFound(uid)
@@ -126,7 +219,22 @@ async def delete_user(uid: str, session: Session):
     return {"message": f"User deleted successfully."}
 
 async def update_user(uid: str, user_updates: PartialProfileData, session: Session):
-    # Update user details for the user with the specified uid.
+    """Update user profile information in the database.
+    
+    Updates only the fields provided in user_updates (partial update).
+    
+    Args:
+        uid (str): Firebase UID of the user to update
+        user_updates (PartialProfileData): Partial profile data with fields to update
+        session (Session): SQLAlchemy database session
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        UserNotFound: If user with given UID doesn't exist
+        InternalServerError: If database update fails
+    """
     user = session.query(User).filter(User.firebase_uid == uid).first()
     if not user:
         raise UserNotFound(uid)
@@ -142,7 +250,21 @@ async def update_user(uid: str, user_updates: PartialProfileData, session: Sessi
     return {"message": "User updated successfully."}
 
 async def get_user_by_id(uid: str):
-    # Get the user data corresponding to the provided uid.
+    """Retrieve Firebase user data and generate a custom token.
+    
+    Fetches user information from Firebase Auth and creates a custom token
+    for the user. This is useful for client-side authentication.
+    
+    Args:
+        uid (str): Firebase UID of the user to retrieve
+        
+    Returns:
+        dict: Contains firebase_user object and custom_token string
+        
+    Raises:
+        UserNotFound: If user with given UID doesn't exist in Firebase
+        InternalServerError: If Firebase operations fail
+    """
     try:
         firebase_user = auth.get_user(uid)
         custom_token = auth.create_custom_token(uid)

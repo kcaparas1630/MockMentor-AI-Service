@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 import os
 from fastapi import FastAPI
+from fastapi.security import HTTPBearer
 from slowapi.errors import RateLimitExceeded
 from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
@@ -29,6 +30,9 @@ from app.errors.handlers import http_exception_handler, generic_exception_handle
 # Load environment variables
 load_dotenv()
 
+# Security scheme for OpenAPI
+security = HTTPBearer()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifespan events."""
@@ -52,7 +56,8 @@ app = FastAPI(
     title="AI Service API",
     description="API for the AI Service",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    swagger_ui_parameters={"persistAuthorization": True}
 )
 # Add CORS middleware
 add_cors_middleware(app)    
