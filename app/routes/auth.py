@@ -23,8 +23,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPBearer
 from loguru import logger
 from app.core.route_limiters import limiter
-from app.services.auth.firebase_auth import create_user, get_all_users, delete_user, update_user, get_user_by_id, get_current_user_uid
-from app.errors.exceptions import DuplicateUserError, InternalServerError, WeakPasswordError, UserNotFound
+from app.services.auth.firebase_auth import create_user, get_all_users, delete_user, update_user, get_user_by_id, get_current_user_uid, google_auth_controller
+from app.errors.exceptions import DuplicateUserError, InternalServerError, WeakPasswordError, UserNotFound, ValidationError
 from sqlalchemy.orm import Session
 from app.database import get_db_session
 from app.schemas.auth.user_auth_schemas import PartialProfileData
@@ -204,3 +204,45 @@ async def get_user_route(request: Request, current_uid: str = Depends(get_curren
     except Exception:
         logger.exception("Unhandled exception in get user endpoint")
         raise InternalServerError("An unexpected error occurred while retrieving the user.")
+@router.post("/google-signin")
+@limiter.limit("10/minute")  # Custom limit for this endpoint
+async def google_signin_route(request: Request, session: Session = Depends(get_db_session)):
+    """Handle Google Sign-In authentication.
+    
+    This endpoint is a placeholder for handling Google Sign-In authentication.
+    The actual implementation would involve verifying the Google ID token,
+    creating or retrieving the user in Firebase and the application database,
+    and returning the appropriate user data and tokens.
+    
+    Args:
+        request (Request): FastAPI request object for rate limiting
+        session (Session): Database session dependency
+        
+    Returns:
+        dict: Placeholder message indicating unimplemented functionality
+        
+    Raises:
+        InternalServerError: If any error occurs during the process
+        
+    Rate Limit:
+        10 requests per minute per client
+    """
+    try:
+        # Get request body
+        body = await request.json()
+        id_token = body.get("idToken")
+
+        if not id_token:
+            raise ValidationError("ID token is required for Google Sign-In.")
+        
+        # Process Google authentication
+        result = await google_auth_controller(id_token, session)
+        return result
+        
+    except ValidationError:
+        raise
+    except DuplicateUserError:
+        raise
+    except Exception:
+        logger.exception("Unhandled exception in google signin endpoint")
+        raise InternalServerError("An unexpected error occurred during Google Sign-In.")

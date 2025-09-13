@@ -47,3 +47,6 @@ class UserDisabled(Unauthorized):
     def __init__(self, identifier: str = None):
         detail = f"User is disabled." if identifier else "User is disabled."
         super().__init__(detail=detail)
+class ValidationError(BadRequest):
+    def __init__(self, detail: str = "Validation error"):
+        super().__init__(detail=detail)

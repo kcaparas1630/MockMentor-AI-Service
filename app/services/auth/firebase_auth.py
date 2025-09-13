@@ -24,8 +24,9 @@ from firebase_admin import auth, credentials
 from firebase_admin.exceptions import InvalidArgumentError
 from app.schemas.auth.user_auth_schemas import PartialProfileData
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from app.models.user_models import User, Profile
-from app.errors.exceptions import DuplicateUserError, WeakPasswordError, InternalServerError, UserNotFound, UserDisabled
+from app.errors.exceptions import DuplicateUserError, WeakPasswordError, InternalServerError, UserNotFound, ValidationError
 from fastapi import Request
 import os
 from loguru import logger
@@ -277,3 +278,95 @@ async def get_user_by_id(uid: str):
     except Exception as e:
         logger.error(f"Error retrieving user {uid}: {e}")
         raise InternalServerError(f"Failed to retrieve user {uid}.")
+    
+async def google_auth_controller(id_token: str, session: Session):
+    """Handle Google OAuth authentication and user creation.
+    
+    Verifies Google ID token, creates user if new, or returns existing user.
+    Matches the TypeScript implementation logic.
+    
+    Args:
+        id_token (str): Google ID token from client
+        session (Session): Database session
+        
+    Returns:
+        dict: Success response with user data
+        
+    Raises:
+        ValidationError: If ID token is invalid
+        DuplicateUserError: If user already exists (for existing user flow)
+        InternalServerError: If database operations fail
+    """
+    # Verify the Google ID token
+    decoded_token, uid = verify_id_token(id_token)
+    if not uid:
+        raise ValidationError("Invalid Google ID token")
+    
+    # Extract user info from token
+    email = decoded_token.get('email', '')
+    name = decoded_token.get('name', '')
+    
+    logger.info(f"Google OAuth - Decoded token UID: {uid}")
+    logger.info(f"Google OAuth - Email: {email}")
+    logger.info(f"Google OAuth - Name: {name}")
+    
+    # Check if user already exists
+    existing_user = session.query(User).filter(User.firebase_uid == uid).first()
+    if existing_user:
+        logger.info(f"Google OAuth - Found existing user: {existing_user.id}")
+        return {
+            "success": True,
+            "user": {
+                "id": existing_user.id,
+                "firebase_uid": existing_user.firebase_uid,
+                "name": existing_user.profile.name,
+                "email": existing_user.profile.email,
+                "job_role": existing_user.profile.job_role,
+                "last_login": existing_user.profile.last_login.isoformat() if existing_user.profile.last_login else None,
+                "created_at": existing_user.created_at.isoformat(),
+                "updated_at": existing_user.updated_at.isoformat()
+            }
+        }
+    
+    # Check for email conflicts
+    existing_email_user = session.query(User).join(Profile).filter(Profile.email == email).first()
+    if existing_email_user:
+        raise DuplicateUserError(email)
+    
+    # Create new user
+    logger.info(f"Google OAuth - Creating new user for UID: {uid}")
+    try:
+        new_user = User(firebase_uid=uid)
+        session.add(new_user)
+        session.flush()  # to get new_user.id
+        
+        new_profile = Profile(
+            user_id=new_user.id,
+            name=name,
+            email=email,
+            job_role="",
+            last_login=func.now()
+        )
+        session.add(new_profile)
+        session.commit()
+        
+        logger.info(f"Google OAuth - Created new user: {new_user.id} with UID: {new_user.firebase_uid}")
+        
+        return {
+            "success": True,
+            "user": {
+                "id": new_user.id,
+                "firebase_uid": new_user.firebase_uid,
+                "name": new_profile.name,
+                "email": new_profile.email,
+                "job_role": new_profile.job_role,
+                "last_login": new_profile.last_login.isoformat() if new_profile.last_login else None,
+                "created_at": new_user.created_at.isoformat(),
+                "updated_at": new_user.updated_at.isoformat()
+            }
+        }
+        
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Database commit failed during Google auth: {e}")
+        raise InternalServerError("Failed to create user due to database error.")
