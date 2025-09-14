@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from datetime import datetime, timezone
 
 class PartialProfileData(BaseModel):
@@ -9,8 +9,7 @@ class PartialProfileData(BaseModel):
     last_login: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="lastLogin")
     password: Optional[str] = Field(None, exclude=True)  # for admin auth, can be none for Oauth users
 
-    class Config:
-        populate_by_name = True # allows camelcase and snake_case interchangeably
+    model_config = ConfigDict(populate_by_name=True) # allows camelcase and snake_case interchangeably
     
 class UserAuthUpdateRequestSchema(BaseModel):
     profile: Optional[PartialProfileData] = None
