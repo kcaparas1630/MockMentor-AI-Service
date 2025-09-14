@@ -31,7 +31,7 @@ from fastapi import Request
 import os
 from loguru import logger
 
-file_path = "app/config/mockmentor-dev-firebase-adminsdk-fbsvc-3769206016.json"
+file_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 # Check if credentials exists
 if not os.path.exists(file_path):
     logger.error(f"Firebase credentials file not found at {file_path}")
