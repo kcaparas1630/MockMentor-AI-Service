@@ -25,6 +25,7 @@ from firebase_admin.exceptions import InvalidArgumentError
 from app.schemas.auth.user_auth_schemas import PartialProfileData
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, DataError, OperationalError
 from app.models.user_models import User, Profile
 from app.errors.exceptions import DuplicateUserError, WeakPasswordError, InternalServerError, UserNotFound, ValidationError
 from fastapi import Request, HTTPException
@@ -145,13 +146,13 @@ async def create_user(user: PartialProfileData, session: Session):
     session.add(new_profile)
     try:
         session.commit()
-    except Exception as e:
+    except (IntegrityError, DataError, OperationalError) as e:
         # Rollback database changes.
         session.rollback()
         # cleanup orphaned Firebase user
         auth.delete_user(auth_user.uid)
         logger.error(f"Database commit failed, cleaned up Firebase user: {e}")
-        raise InternalServerError("Failed to create user due to database error.")
+        raise InternalServerError("Failed to create user due to database error.") from e
     return {
         "firebase_user": auth_user,
         "db_user": new_user,
