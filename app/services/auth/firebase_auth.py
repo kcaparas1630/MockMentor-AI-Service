@@ -125,9 +125,9 @@ async def create_user(user: PartialProfileData, session: Session):
     except InvalidArgumentError as e:
         error_msg = str(e)
         if "EMAIL_EXISTS" in error_msg:
-            raise DuplicateUserError(user.email)
+            raise DuplicateUserError(user.email) from e
         elif "PASSWORD_DOES_NOT_MEET_REQUIREMENTS" in error_msg:
-            raise WeakPasswordError()
+            raise WeakPasswordError() from e
         else:
             logger.error(f"Error creating user in Firebase: {error_msg}")
             raise
