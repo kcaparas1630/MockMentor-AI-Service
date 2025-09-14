@@ -171,7 +171,7 @@ async def update_user_route(request: Request, uid: str, user_updates: PartialPro
         raise InternalServerError("An unexpected error occurred while updating the user.") from e
 @router.get("/user")
 @limiter.limit("10/minute")  # Custom limit for this endpoint
-async def get_user_route(request: Request, current_uid: str = Depends(get_current_user_uid), token: str = Depends(security)):
+async def get_user_route(request: Request, current_uid: str = Depends(get_current_user_uid), _: str = Depends(security)):
     """Retrieve the current authenticated user's information.
     
     Returns Firebase user data and generates a custom token for the authenticated user.
