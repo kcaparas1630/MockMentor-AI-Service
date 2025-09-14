@@ -77,7 +77,7 @@ class Profile(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
-    email: Mapped[str] = mapped_column(String(50), unique=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True)
     job_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     last_login: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
