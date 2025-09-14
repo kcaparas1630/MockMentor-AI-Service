@@ -276,7 +276,12 @@ async def get_user_by_id(uid: str):
         firebase_user = auth.get_user(uid)
         custom_token = auth.create_custom_token(uid)
         return {
-            "firebase_user": firebase_user,
+            "user": {
+                "uid": firebase_user.uid,
+                "email": getattr(firebase_user, 'email', None),
+                "email_verified": getattr(firebase_user, 'email_verified', None),
+                "disabled": getattr(firebase_user, 'disabled', None),
+            },
             "custom_token": custom_token.decode('utf-8')
         }
     except auth.UserNotFoundError:
