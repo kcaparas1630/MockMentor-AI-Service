@@ -63,6 +63,8 @@ async def register_user_route(request: Request, profile_data: PartialProfileData
         5 requests per minute per client
     """
     try:
+        if not profile_data.email or not profile_data.password:
+            raise ValidationError("Email, password, an are required fields.")
         user = await create_user(profile_data, session)
         return {
             "message": "User created successfully",
