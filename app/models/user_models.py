@@ -143,7 +143,7 @@ class Question(Base):
     job_role: Mapped[str] = mapped_column(String(100))
     job_level: Mapped[str] = mapped_column(String(50))
     # Establish one-to-many relationship with InterviewQuestion
-    interview: Mapped[List["InterviewQuestion"]] = relationship("InterviewQuestion", back_populates="question", cascade="all")
+    interview_questions: Mapped[List["InterviewQuestion"]] = relationship("InterviewQuestion", back_populates="question", cascade="all")
 
     def __repr__(self):
         return f"Question(id={self.id}, text={self.question}, category={self.question_type})"
