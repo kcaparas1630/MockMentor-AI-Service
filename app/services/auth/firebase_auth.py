@@ -31,6 +31,7 @@ from app.errors.exceptions import DuplicateUserError, WeakPasswordError, Interna
 from fastapi import Request, HTTPException
 import os
 from loguru import logger
+from datetime import datetime, timezone
 
 file_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 # Check if credentials exists
@@ -344,7 +345,7 @@ async def google_auth_controller(id_token: str, session: Session):
             name=name,
             email=email,
             job_role="",
-            last_login=func.now()
+            last_login=datetime.now(timezone.utc)
         )
         session.add(new_profile)
         session.commit()
