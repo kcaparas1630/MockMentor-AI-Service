@@ -308,11 +308,7 @@ async def google_auth_controller(id_token: str, session: Session):
     # Extract user info from token
     email = decoded_token.get('email', '')
     name = decoded_token.get('name', '')
-    
-    logger.info(f"Google OAuth - Decoded token UID: {uid}")
-    logger.info(f"Google OAuth - Email: {email}")
-    logger.info(f"Google OAuth - Name: {name}")
-    
+        
     # Check if user already exists
     existing_user = session.query(User).filter(User.firebase_uid == uid).first()
     if existing_user:
