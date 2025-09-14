@@ -30,7 +30,7 @@ class WeakPasswordError(BadRequest):
 
 class DuplicateUserError(DuplicateRecordError):
     def __init__(self, identifier: Optional[str] = None):
-        detail = f"User {identifier}' already exists." if identifier else "User already exists."
+        detail = f"User '{identifier}' already exists." if identifier else "User already exists."
         super().__init__(detail=detail)
 class DuplicateInterviewError(DuplicateRecordError):
     def __init__(self, identifier: Optional[str] = None):
