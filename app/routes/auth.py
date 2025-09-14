@@ -161,7 +161,7 @@ async def update_user_route(request: Request, uid: str, user_updates: PartialPro
         5 requests per minute per client
     """
     try:
-        result = update_user(uid, user_updates, session)
+        result = await update_user(uid, user_updates, session)
         return result
     
     except UserNotFound:
