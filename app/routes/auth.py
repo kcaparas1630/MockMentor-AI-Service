@@ -73,9 +73,9 @@ async def register_user_route(request: Request, profile_data: PartialProfileData
         raise
     except WeakPasswordError:
         raise
-    except Exception:
+    except Exception as e:
         logger.exception("Unhandled exception in auth endpoint")
-        raise InternalServerError("An unexpected error occurred in the auth endpoint.")
+        raise InternalServerError("An unexpected error occurred in the auth endpoint.") from e
 
 @router.get("/users")
 @limiter.limit("10/minute")  # Custom limit for this endpoint
@@ -103,9 +103,9 @@ async def get_users_route(request: Request, session: Session = Depends(get_db_se
             "users": users
         }
     
-    except Exception:
+    except Exception as e:
         logger.exception("Unhandled exception in get users endpoint")
-        raise InternalServerError("An unexpected error occurred while retrieving users.")
+        raise InternalServerError("An unexpected error occurred while retrieving users.") from e
 @router.delete("/users/{uid}")
 @limiter.limit("5/minute")  # Custom limit for this endpoint
 async def delete_user_route(request: Request, uid: str, session: Session = Depends(get_db_session)):
@@ -134,9 +134,9 @@ async def delete_user_route(request: Request, uid: str, session: Session = Depen
     
     except UserNotFound:
         raise
-    except Exception:
+    except Exception as e:
         logger.exception("Unhandled exception in delete user endpoint")
-        raise InternalServerError("An unexpected error occurred while deleting the user.")
+        raise InternalServerError("An unexpected error occurred while deleting the user.") from e
 @router.put("/users/{uid}")
 @limiter.limit("5/minute")  # Custom limit for this endpoint
 async def update_user_route(request: Request, uid: str, user_updates: PartialProfileData, session: Session = Depends(get_db_session)):
@@ -166,9 +166,9 @@ async def update_user_route(request: Request, uid: str, user_updates: PartialPro
     
     except UserNotFound:
         raise
-    except Exception:
+    except Exception as e:
         logger.exception("Unhandled exception in update user endpoint")
-        raise InternalServerError("An unexpected error occurred while updating the user.")
+        raise InternalServerError("An unexpected error occurred while updating the user.") from e
 @router.get("/user")
 @limiter.limit("10/minute")  # Custom limit for this endpoint
 async def get_user_route(request: Request, current_uid: str = Depends(get_current_user_uid), token: str = Depends(security)):
@@ -201,9 +201,9 @@ async def get_user_route(request: Request, current_uid: str = Depends(get_curren
         return response
     except UserNotFound:
         raise
-    except Exception:
+    except Exception as e:
         logger.exception("Unhandled exception in get user endpoint")
-        raise InternalServerError("An unexpected error occurred while retrieving the user.")
+        raise InternalServerError("An unexpected error occurred while retrieving the user.") from e
 @router.post("/google-signin")
 @limiter.limit("10/minute")  # Custom limit for this endpoint
 async def google_signin_route(request: Request, session: Session = Depends(get_db_session)):
@@ -243,6 +243,6 @@ async def google_signin_route(request: Request, session: Session = Depends(get_d
         raise
     except DuplicateUserError:
         raise
-    except Exception:
+    except Exception as e:
         logger.exception("Unhandled exception in google signin endpoint")
-        raise InternalServerError("An unexpected error occurred during Google Sign-In.")
+        raise InternalServerError("An unexpected error occurred during Google Sign-In.") from e
