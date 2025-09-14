@@ -150,9 +150,12 @@ async def create_user(user: PartialProfileData, session: Session):
         # Rollback database changes.
         session.rollback()
         # cleanup orphaned Firebase user
-        auth.delete_user(auth_user.uid)
-        logger.error(f"Database commit failed, cleaned up Firebase user: {e}")
-        raise InternalServerError("Failed to create user due to database error.") from e
+        try:
+            auth.delete_user(auth_user.uid)
+            logger.error(f"Database commit failed, cleaned up Firebase user: {e}")
+        except Exception as cleanup_error:
+            logger.error(f"Failed to clean up Firebase user after DB failure: {cleanup_error}")
+            logger.error(f"Original DB error: {e}")
     return {
         "firebase_user": auth_user,
         "db_user": new_user,
