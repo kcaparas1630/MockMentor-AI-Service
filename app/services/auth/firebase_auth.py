@@ -244,7 +244,7 @@ async def update_user(uid: str, user_updates: PartialProfileData, session: Sessi
         raise UserNotFound(uid)
     # Update user details here as needed.
     try:
-        update_data = {k: v for k, v in user_updates.model_dump().items() if v is not None}
+        update_data = {k: v for k, v in user_updates.model_dump(exclude={'password'}).items() if v is not None}
         session.query(Profile).filter(Profile.user_id == user.id).update(update_data)
         session.commit()
     except Exception as e:
