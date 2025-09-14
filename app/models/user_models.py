@@ -80,7 +80,7 @@ class Profile(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True)
     job_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     last_login: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
     # Establish one-to-one relationship with User
     user: Mapped["User"] = relationship("User", back_populates="profile")
 
