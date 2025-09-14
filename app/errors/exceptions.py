@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import HTTPException
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_409_CONFLICT
 
@@ -28,23 +29,23 @@ class WeakPasswordError(BadRequest):
         super().__init__(detail=detail)
 
 class DuplicateUserError(DuplicateRecordError):
-    def __init__(self, identifier: str = None):
+    def __init__(self, identifier: Optional[str] = None):
         detail = f"User {identifier}' already exists." if identifier else "User already exists."
         super().__init__(detail=detail)
 class DuplicateInterviewError(DuplicateRecordError):
-    def __init__(self, identifier: str = None):
+    def __init__(self, identifier: Optional[str] = None):
         detail = f"Interview '{identifier}' already exists." if identifier else "Interview already exists."
         super().__init__(detail=detail)
 class DuplicateQuestionError(DuplicateRecordError):
-    def __init__(self, identifier: str = None):
+    def __init__(self, identifier: Optional[str] = None):
         detail = f"Question '{identifier}' already exists." if identifier else "Question already exists."
         super().__init__(detail=detail)
 class UserNotFound(NotFound):
-    def __init__(self, identifier: str = None):
+    def __init__(self, identifier: Optional[str] = None):
         detail = f"User not found." if identifier else "User not found."
         super().__init__(detail=detail)
 class UserDisabled(Unauthorized):
-    def __init__(self, identifier: str = None):
+    def __init__(self, identifier: Optional[str] = None):
         detail = f"User is disabled." if identifier else "User is disabled."
         super().__init__(detail=detail)
 class ValidationError(BadRequest):
