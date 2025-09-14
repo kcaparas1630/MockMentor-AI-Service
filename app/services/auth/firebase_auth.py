@@ -58,7 +58,7 @@ def verify_id_token(id_token: str):
     """
     try: 
         decoded_token = auth.verify_id_token(id_token, check_revoked=True)
-        uid = decoded_token['uid']
+        _, uid = decoded_token['uid']
         return decoded_token, uid
     except auth.InvalidIdTokenError:
         # Token is invalid, expired or revoked.
