@@ -7,7 +7,7 @@ class PartialProfileData(BaseModel):
     email: Optional[EmailStr] = None
     job_role: Optional[str] = Field(None, alias="jobRole")
     last_login: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc), alias="lastLogin")
-    password: Optional[str] = None  # for admin auth, can be none for Oauth users
+    password: Optional[str] = Field(None, exclude=True)  # for admin auth, can be none for Oauth users
 
     class Config:
         populate_by_name = True # allows camelcase and snake_case interchangeably
