@@ -55,7 +55,8 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
     def __repr__(self):
-        return f"User(name={self.profile.name})"
+        profile_name = self.profile.name if self.profile else "No Profile"
+        return f"User(name={profile_name})"
 
 class Profile(Base):
     """User profile information and preferences.
