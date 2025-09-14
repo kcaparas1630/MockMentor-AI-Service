@@ -34,6 +34,8 @@ from loguru import logger
 from datetime import datetime, timezone
 
 file_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+if file_path is None:
+    raise ValueError("FIREBASE_CREDENTIALS_PATH environment variable not set")
 # Check if credentials exists
 if not os.path.exists(file_path):
     logger.error(f"Firebase credentials file not found at {file_path}")
