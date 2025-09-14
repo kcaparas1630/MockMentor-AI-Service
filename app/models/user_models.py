@@ -183,7 +183,7 @@ class InterviewQuestion(Base):
     # Establish many-to-one relationship with Interview
     interview: Mapped["Interview"] = relationship("Interview", back_populates="questions")
     # Establish many-to-one relationship with Question
-    question: Mapped["Question"] = relationship("Question", back_populates="interview")
+    question: Mapped["Question"] = relationship("Question", back_populates="interview_questions")
 
     def __repr__(self):
         return f"InterviewQuestion(id={self.id}, question_text={self.question_text})"
