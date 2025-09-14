@@ -111,7 +111,7 @@ def drop_tables():
     """
     try:
         Base.metadata.drop_all(bind=engine)
-        logger.info("Database tables drop successfully")
+        logger.info("Database tables dropped successfully")
     except Exception as e:
         logger.error(f"Error dropping database tables: {e}")
         raise
