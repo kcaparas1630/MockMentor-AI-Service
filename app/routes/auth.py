@@ -209,17 +209,16 @@ async def get_user_route(request: Request, current_uid: str = Depends(get_curren
 async def google_signin_route(request: Request, session: Session = Depends(get_db_session)):
     """Handle Google Sign-In authentication.
     
-    This endpoint is a placeholder for handling Google Sign-In authentication.
-    The actual implementation would involve verifying the Google ID token,
-    creating or retrieving the user in Firebase and the application database,
-    and returning the appropriate user data and tokens.
+    Verifies the Google ID token and creates or retrieves the user in both
+    Firebase and the application database. Returns user data for existing
+    users or creates a new user account for first-time sign-ins.
     
     Args:
         request (Request): FastAPI request object for rate limiting
         session (Session): Database session dependency
         
     Returns:
-        dict: Placeholder message indicating unimplemented functionality
+        dict: User data and authentication tokens
         
     Raises:
         InternalServerError: If any error occurs during the process
