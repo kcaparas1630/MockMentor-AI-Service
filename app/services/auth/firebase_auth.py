@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.user_models import User, Profile
 from app.errors.exceptions import DuplicateUserError, WeakPasswordError, InternalServerError, UserNotFound, ValidationError
-from fastapi import Request
+from fastapi import Request, HTTPException
 import os
 from loguru import logger
 
@@ -82,13 +82,11 @@ def get_current_user_uid(request: Request):
     """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     
     token = auth_header.split(" ")[1]
-    decoded_token, uid = verify_id_token(token)
+    uid = verify_id_token(token)
     if not uid:
-        from fastapi import HTTPException
         raise HTTPException(status_code=401, detail="Invalid or expired token")
     
     return uid
