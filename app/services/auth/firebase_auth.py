@@ -35,6 +35,7 @@ file_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
 # Check if credentials exists
 if not os.path.exists(file_path):
     logger.error(f"Firebase credentials file not found at {file_path}")
+    raise FileNotFoundError(f"Firebase credentials file not found at {file_path}")
 
 cred = credentials.Certificate(file_path)
 firebase_admin.initialize_app(cred)
