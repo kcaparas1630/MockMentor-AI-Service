@@ -32,6 +32,18 @@ HOST = os.getenv("DB_HOST")
 PORT = os.getenv("DB_PORT")
 DBNAME = os.getenv("DB_NAME")
 
+# Validate required database configuration
+required_vars = {
+    "DB_USER": USER,
+    "DB_PASSWORD": PASSWORD,
+    "DB_HOST": HOST,
+    "DB_PORT": PORT,
+    "DB_NAME": DBNAME
+}
+missing_vars = [var for var, value in required_vars.items() if not value]
+if missing_vars:
+    raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+
 DATABASE_URL = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}?sslmode=require"
 
 # Create a new SQLAlchemy engine instance
