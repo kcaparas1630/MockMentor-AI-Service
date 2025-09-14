@@ -32,17 +32,17 @@ from fastapi import Request, HTTPException
 import os
 from loguru import logger
 from datetime import datetime, timezone
+import json
+from google.oauth2 import service_account
 
-file_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
-if file_path is None:
-    raise ValueError("FIREBASE_CREDENTIALS_PATH environment variable not set")
+credentials_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
+if credentials_json is None:
+    raise ValueError("FIREBASE_CREDENTIALS_JSON environment variable not set")
 # Check if credentials exists
-if not os.path.exists(file_path):
-    logger.error(f"Firebase credentials file not found at {file_path}")
-    raise FileNotFoundError(f"Firebase credentials file not found at {file_path}")
 
-cred = credentials.Certificate(file_path)
-firebase_admin.initialize_app(cred)
+credentials_dict = json.loads(credentials_json)
+credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+firebase_admin.initialize_app(credentials)
 
 def verify_id_token(id_token: str):
     """Verify Firebase ID token and extract user information.
