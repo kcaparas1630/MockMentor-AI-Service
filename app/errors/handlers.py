@@ -30,7 +30,7 @@ def database_integrity_handler(request: Request, exc: IntegrityError):
         JSONResponse with 400 status and user-friendly error message
         
     Raises:
-        DuplicateReportError: For duplicate key violations
+        DuplicateUserError | DuplicateInterviewError | DuplicateQuestionError: For duplicate key violations
     """
     error_msg = str(exc.orig).lower()
     
