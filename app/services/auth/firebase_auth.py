@@ -165,11 +165,19 @@ async def create_user(user: PartialProfileData, session: Session):
         except Exception as cleanup_error:
             logger.error(f"Failed to clean up Firebase user after DB failure: {cleanup_error}")
             logger.error(f"Original DB error: {e}")
-        raise InternalServerError("Failed to create user due to database error and cleanup failure.") from e
+        raise InternalServerError("Failed to create user due to database error.") from e
     return {
-        "firebase_user": auth_user,
-        "db_user": new_user,
-        "db_profile": new_profile
+        "user": {
+            "id": new_user.id,
+            "firebase_uid": new_user.firebase_uid,
+        },
+        "profile": {
+            "id": new_profile.id,
+            "name": new_profile.name,
+            "email": new_profile.email,
+            "job_role": new_profile.job_role,
+            "last_login": new_profile.last_login.isoformat() if new_profile.last_login else None,
+        }
     }
     
 async def get_all_users(session: Session):
