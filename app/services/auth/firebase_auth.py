@@ -20,7 +20,7 @@ Author: @kcaparas1630
 """
 
 import firebase_admin
-from firebase_admin import auth, credentials
+from firebase_admin import auth, credentials as fa_credentials
 from firebase_admin.exceptions import InvalidArgumentError
 from app.schemas.auth.user_auth_schemas import PartialProfileData
 from sqlalchemy.orm import Session
@@ -33,7 +33,7 @@ import os
 from loguru import logger
 from datetime import datetime, timezone
 import json
-from google.oauth2 import service_account
+
 
 credentials_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
 if credentials_json is None:
@@ -41,8 +41,11 @@ if credentials_json is None:
 # Check if credentials exists
 
 credentials_dict = json.loads(credentials_json)
-credentials = service_account.Credentials.from_service_account_info(credentials_dict)
-firebase_admin.initialize_app(credentials)
+cred = fa_credentials.Certificate(credentials_dict)
+try:
+    firebase_admin.get_app()
+except ValueError:
+    firebase_admin.initialize_app(cred)
 
 def verify_id_token(id_token: str):
     """Verify Firebase ID token and extract user information.
@@ -58,7 +61,7 @@ def verify_id_token(id_token: str):
     """
     try: 
         decoded_token = auth.verify_id_token(id_token, check_revoked=True)
-        _, uid = decoded_token['uid']
+        uid = decoded_token.get('uid')
         return decoded_token, uid
     except auth.InvalidIdTokenError:
         # Token is invalid, expired or revoked.
