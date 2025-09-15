@@ -330,6 +330,8 @@ async def google_auth_controller(id_token: str, session: Session):
     
     # Extract user info from token
     email = decoded_token.get('email', '')
+    if not email:
+        raise ValidationError("Google ID token missing email")
     name = decoded_token.get('name', '')
         
     # Check if user already exists
