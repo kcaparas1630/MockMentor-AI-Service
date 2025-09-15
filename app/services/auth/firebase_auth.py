@@ -59,13 +59,16 @@ def verify_id_token(id_token: str):
     Note:
         Checks if token is revoked using check_revoked=True parameter
     """
-    try: 
+    try:
         decoded_token = auth.verify_id_token(id_token, check_revoked=True)
-        uid = decoded_token.get('uid')
-        return decoded_token, uid
-    except auth.InvalidIdTokenError:
-        # Token is invalid, expired or revoked.
+    except (auth.InvalidIdTokenError, auth.ExpiredIdTokenError, auth.RevokedIdTokenError, ValueError) as e:
+        logger.debug(f"Token verification failed: {e}")
         return None, None
+    except Exception as e:
+        logger.error(f"Unexpected token verification error: {e}")
+        return None, None
+    uid = decoded_token.get("uid")
+    return decoded_token, uid
 
 def get_current_user_uid(request: Request):
     """Extract and verify Firebase ID token from request headers.
@@ -152,7 +155,7 @@ async def create_user(user: PartialProfileData, session: Session):
     session.add(new_profile)
     try:
         session.commit()
-    except (IntegrityError, DataError, OperationalError) as e:
+    except (IntegrityError, DataError, OperationalError, SQLAlchemyError) as e:
         # Rollback database changes.
         session.rollback()
         # cleanup orphaned Firebase user
@@ -162,6 +165,7 @@ async def create_user(user: PartialProfileData, session: Session):
         except Exception as cleanup_error:
             logger.error(f"Failed to clean up Firebase user after DB failure: {cleanup_error}")
             logger.error(f"Original DB error: {e}")
+        raise InternalServerError("Failed to create user due to database error and cleanup failure.") from e
     return {
         "firebase_user": auth_user,
         "db_user": new_user,
