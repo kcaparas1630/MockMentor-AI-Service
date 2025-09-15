@@ -218,14 +218,14 @@ async def delete_user(uid: str, session: Session):
         logger.warning(f"Firebase user {uid} not found during deletion.")
     except Exception as e:
         logger.error(f"Error deleting Firebase user {uid}: {e}")
-        raise InternalServerError(f"Failed to delete Firebase user {uid}.")
+        raise InternalServerError(f"Failed to delete Firebase user {uid}.") from e
     try:
         session.delete(user)
         session.commit()
     except Exception as e:
         session.rollback()
         logger.error(f"Error deleting user {uid} from database: {e}")
-        raise InternalServerError(f"Failed to delete user {uid} from database.")
+        raise InternalServerError(f"Failed to delete user {uid} from database.") from e
     return {"message": f"User deleted successfully."}
 
 async def update_user(uid: str, user_updates: PartialProfileData, session: Session):
@@ -379,4 +379,4 @@ async def google_auth_controller(id_token: str, session: Session):
     except Exception as e:
         session.rollback()
         logger.error(f"Database commit failed during Google auth: {e}")
-        raise InternalServerError("Failed to create user due to database error.")
+        raise InternalServerError("Failed to create user due to database error.") from e

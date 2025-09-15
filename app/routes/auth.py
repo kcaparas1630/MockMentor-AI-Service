@@ -68,7 +68,10 @@ async def register_user_route(request: Request, profile_data: PartialProfileData
         result = await create_user(profile_data, session)
         return {
             "message": "User created successfully",
-            "user": result["user"]
+            "user": {
+                "uid": result["db_user"].uid,
+                "email": result["db_profile"].email,
+            }
         }
     
     except DuplicateUserError:
@@ -81,7 +84,11 @@ async def register_user_route(request: Request, profile_data: PartialProfileData
 
 @router.get("/users")
 @limiter.limit("10/minute")  # Custom limit for this endpoint
-async def get_users_route(request: Request, session: Session = Depends(get_db_session)):
+async def get_users_route(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    _: str = Depends(security),
+    ):
     """Retrieve all registered users from the database.
     
     Returns a list of all users with their profile information.
@@ -110,7 +117,12 @@ async def get_users_route(request: Request, session: Session = Depends(get_db_se
         raise InternalServerError("An unexpected error occurred while retrieving users.") from e
 @router.delete("/users/{uid}")
 @limiter.limit("5/minute")  # Custom limit for this endpoint
-async def delete_user_route(request: Request, uid: str, session: Session = Depends(get_db_session)):
+async def delete_user_route(
+    request: Request,
+    session: Session = Depends(get_db_session),
+    _: str = Depends(security),
+    current_uid: str = Depends(get_current_user_uid),
+    ):
     """Delete a user by their Firebase UID.
     
     Removes the user from both Firebase Auth and the application database.
@@ -131,7 +143,7 @@ async def delete_user_route(request: Request, uid: str, session: Session = Depen
         5 requests per minute per client
     """
     try:
-        result = await delete_user(uid, session)
+        result = await delete_user(current_uid, session)
         return result
     
     except UserNotFound:
@@ -141,7 +153,14 @@ async def delete_user_route(request: Request, uid: str, session: Session = Depen
         raise InternalServerError("An unexpected error occurred while deleting the user.") from e
 @router.put("/users/{uid}")
 @limiter.limit("5/minute")  # Custom limit for this endpoint
-async def update_user_route(request: Request, uid: str, user_updates: PartialProfileData, session: Session = Depends(get_db_session)):
+async def update_user_route(
+    request: Request, 
+    uid: str,
+    user_updates: PartialProfileData,
+    session: Session = Depends(get_db_session),
+    _: str = Depends(security),
+    current_uid: str = Depends(get_current_user_uid)
+    ):
     """Update user profile information by Firebase UID.
     
     Updates user profile data in the database. Only provided fields are updated.
@@ -163,6 +182,9 @@ async def update_user_route(request: Request, uid: str, user_updates: PartialPro
         5 requests per minute per client
     """
     try:
+        if uid != current_uid:
+            raise ValidationError("You can only update your own profile.")
+        
         result = await update_user(uid, user_updates, session)
         return result
     
