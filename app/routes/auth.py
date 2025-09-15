@@ -69,7 +69,7 @@ async def register_user_route(request: Request, profile_data: PartialProfileData
         return {
             "message": "User created successfully",
             "user": {
-                "uid": result["db_user"].uid,
+                "uid": result["firebase_user"].uid,
                 "email": result["db_profile"].email,
             }
         }
@@ -119,6 +119,7 @@ async def get_users_route(
 @limiter.limit("5/minute")  # Custom limit for this endpoint
 async def delete_user_route(
     request: Request,
+    uid: str,
     session: Session = Depends(get_db_session),
     _: str = Depends(security),
     current_uid: str = Depends(get_current_user_uid),
@@ -131,6 +132,7 @@ async def delete_user_route(
         request (Request): FastAPI request object for rate limiting
         uid (str): Firebase UID of the user to delete
         session (Session): Database session dependency
+        current_uid (str): Firebase UID of the currently authenticated user (dependency)
         
     Returns:
         dict: Success message
@@ -143,7 +145,9 @@ async def delete_user_route(
         5 requests per minute per client
     """
     try:
-        result = await delete_user(current_uid, session)
+        if uid != current_uid:
+            raise ValidationError("You can only delete your own account.")
+        result = await delete_user(uid, session)
         return result
     
     except UserNotFound:

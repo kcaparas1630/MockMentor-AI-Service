@@ -25,7 +25,7 @@ from firebase_admin.exceptions import InvalidArgumentError
 from app.schemas.auth.user_auth_schemas import PartialProfileData
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError, DataError, OperationalError
+from sqlalchemy.exc import IntegrityError, DataError, OperationalError, SQLAlchemyError
 from app.models.user_models import User, Profile
 from app.errors.exceptions import DuplicateUserError, WeakPasswordError, InternalServerError, UserNotFound, ValidationError
 from fastapi import Request, HTTPException
@@ -253,10 +253,10 @@ async def update_user(uid: str, user_updates: PartialProfileData, session: Sessi
         update_data = {k: v for k, v in user_updates.model_dump(exclude={'password'}).items() if v is not None}
         session.query(Profile).filter(Profile.user_id == user.id).update(update_data)
         session.commit()
-    except Exception as e:
+    except SQLAlchemyError as e:
         session.rollback()
         logger.error(f"Error updating user {uid}: {e}")
-        raise InternalServerError(f"Failed to update user {uid}.")
+        raise InternalServerError(f"Failed to update user {uid}.") from e
     return {"message": "User updated successfully."}
 
 async def get_user_by_id(uid: str):
